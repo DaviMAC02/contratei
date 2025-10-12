@@ -22,7 +22,13 @@ export const prisma =
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-// Graceful shutdown
-process.on("beforeExit", async () => {
-  await prisma.$disconnect();
-});
+// Graceful shutdown - only in Node.js environments where process.on is available
+if (typeof process !== "undefined" && typeof process.on === "function") {
+  process.on("beforeExit", async () => {
+    try {
+      await prisma.$disconnect();
+    } catch (error) {
+      console.error("Error disconnecting Prisma:", error);
+    }
+  });
+}
