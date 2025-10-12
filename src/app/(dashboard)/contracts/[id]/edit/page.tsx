@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import Link from "next/link";
 export default function EditContractPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useTranslation();
   const [orgId, setOrgId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -25,7 +26,7 @@ export default function EditContractPage() {
   const orgsQuery = trpc.org.list.useQuery();
   const contractQuery = trpc.contract.get.useQuery(
     { orgId, id: contractId },
-    { enabled: !!orgId }
+    { enabled: !!orgId && !!contractId }
   );
   const membersQuery = trpc.org.listMembers.useQuery(
     { orgId },
@@ -33,14 +34,19 @@ export default function EditContractPage() {
   );
 
   useEffect(() => {
-    if (orgsQuery.data && orgsQuery.data.length > 0) {
+    // First try to get orgId from URL
+    const orgIdFromUrl = searchParams.get("orgId");
+    if (orgIdFromUrl) {
+      setOrgId(orgIdFromUrl);
+    } else if (orgsQuery.data && orgsQuery.data.length > 0) {
+      // Fallback to first org if no orgId in URL
       setOrgId(orgsQuery.data[0].id);
     }
-  }, [orgsQuery.data]);
+  }, [searchParams, orgsQuery.data]);
 
   const updateMutation = trpc.contract.update.useMutation({
     onSuccess: () => {
-      router.push(`/contracts/${contractId}`);
+      router.push(`/contracts/${contractId}?orgId=${orgId}`);
     },
   });
 
@@ -55,9 +61,11 @@ export default function EditContractPage() {
         orgId,
         id: contractId,
         title: formData.get("title") as string,
-        supplierName: formData.get("supplierName") as string,
-        supplierContact:
-          (formData.get("supplierContact") as string) || undefined,
+        contractType:
+          (formData.get("contractType") as "INBOUND" | "OUTBOUND") || undefined,
+        counterpartyName: formData.get("counterpartyName") as string,
+        counterpartyContact:
+          (formData.get("counterpartyContact") as string) || undefined,
         ownerUserId: formData.get("ownerUserId") as string,
         endDate: formData.get("endDate")
           ? new Date(formData.get("endDate") as string)
@@ -95,7 +103,7 @@ export default function EditContractPage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <Link href={`/contracts/${contractId}`}>
+        <Link href={`/contracts/${contractId}?orgId=${orgId}`}>
           <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
@@ -121,22 +129,39 @@ export default function EditContractPage() {
                 />
               </div>
 
+              <div>
+                <Label htmlFor="contractType">Tipo de Contrato *</Label>
+                <Select
+                  id="contractType"
+                  name="contractType"
+                  required
+                  defaultValue={contract.contractType}
+                >
+                  <option value="OUTBOUND">
+                    � Contratando Serviço - Cliente (pagando)
+                  </option>
+                  <option value="INBOUND">
+                    � Prestando Serviço - Fornecedor (recebendo)
+                  </option>
+                </Select>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="supplierName">Fornecedor *</Label>
+                  <Label htmlFor="counterpartyName">Contraparte *</Label>
                   <Input
-                    id="supplierName"
-                    name="supplierName"
+                    id="counterpartyName"
+                    name="counterpartyName"
                     required
-                    defaultValue={contract.supplierName}
+                    defaultValue={contract.counterpartyName}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="supplierContact">Contato</Label>
+                  <Label htmlFor="counterpartyContact">Contato</Label>
                   <Input
-                    id="supplierContact"
-                    name="supplierContact"
-                    defaultValue={contract.supplierContact || ""}
+                    id="counterpartyContact"
+                    name="counterpartyContact"
+                    defaultValue={contract.counterpartyContact || ""}
                   />
                 </div>
               </div>

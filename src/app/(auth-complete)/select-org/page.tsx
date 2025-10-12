@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc-client";
@@ -19,10 +19,12 @@ export default function SelectOrgPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const orgsQuery = trpc.org.list.useQuery();
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
-    // If user has only one org, redirect to dashboard with that org
+    // If user has only one org, redirect to dashboard with that org immediately
     if (orgsQuery.data && orgsQuery.data.length === 1) {
+      setIsRedirecting(true);
       const orgId = orgsQuery.data[0].id;
       localStorage.setItem("selectedOrgId", orgId);
       router.replace(`/dashboard?orgId=${orgId}`);
@@ -35,12 +37,12 @@ export default function SelectOrgPage() {
     router.push(`/dashboard?orgId=${orgId}`);
   };
 
-  if (orgsQuery.isLoading) {
+  // Show loading while fetching orgs or redirecting
+  if (orgsQuery.isLoading || isRedirecting) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading your organizations...</p>
         </div>
       </div>
     );

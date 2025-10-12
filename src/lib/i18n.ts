@@ -46,12 +46,15 @@ export const translations = {
     "contracts.history": "Histórico",
     "contracts.adjustments": "Reajustes",
 
-    // Status
+    // Status (camelCase - preferred)
     "status.active": "Ativo",
     "status.dueSoon": "Vence em Breve",
     "status.expired": "Vencido",
     "status.inRenewal": "Em Renovação",
     "status.canceled": "Cancelado",
+    // Status (snake_case - fallback for compatibility)
+    "status.due_soon": "Vence em Breve",
+    "status.in_renewal": "Em Renovação",
 
     // Periodicity
     "periodicity.monthly": "Mensal",
@@ -193,12 +196,15 @@ export const translations = {
     "contracts.history": "History",
     "contracts.adjustments": "Adjustments",
 
-    // Status
+    // Status (camelCase - preferred)
     "status.active": "Active",
     "status.dueSoon": "Due Soon",
     "status.expired": "Expired",
     "status.inRenewal": "In Renewal",
     "status.canceled": "Canceled",
+    // Status (snake_case - fallback for compatibility)
+    "status.due_soon": "Due Soon",
+    "status.in_renewal": "In Renewal",
 
     // Periodicity
     "periodicity.monthly": "Monthly",

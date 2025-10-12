@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, Loader2, UserPlus } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
@@ -39,8 +40,14 @@ export default function SignUpPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <UserPlus className="h-6 w-6" />
+          <div className="flex justify-center mb-6">
+            <Image
+              src="/logo.svg"
+              alt="Contratei Logo"
+              width={180}
+              height={60}
+              priority
+            />
           </div>
           <CardTitle className="text-2xl">Criar Conta</CardTitle>
           <p className="text-sm text-muted-foreground mt-2">

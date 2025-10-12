@@ -54,6 +54,16 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/select-org", req.url));
   }
 
+  // Protect /select-org and /onboarding routes - require authentication
+  if (
+    !hasSession &&
+    (pathname.startsWith("/select-org") || pathname.startsWith("/onboarding"))
+  ) {
+    const signInUrl = new URL("/auth/signin", req.url);
+    signInUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(signInUrl);
+  }
+
   // If user is authenticated and trying to access dashboard without orgId, redirect to select-org
   if (hasSession && pathname.startsWith("/dashboard")) {
     const url = new URL(req.url);

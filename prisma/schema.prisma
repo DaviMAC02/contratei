@@ -104,7 +104,7 @@ model Org {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Plan limits
+  // Plan limits (defaults match FREE plan: 3 contracts, 1 user)
   maxContracts Int @default(3)
   maxUsers     Int @default(1)
 
@@ -201,6 +201,11 @@ model Subscription {
 // CONTRACTS
 // ============================================
 
+enum ContractType {
+  INBOUND // Organization is the service provider (receiving payment)
+  OUTBOUND // Organization is the service consumer (making payment)
+}
+
 enum ContractStatus {
   ACTIVE
   DUE_SOON
@@ -218,7 +223,6 @@ enum Periodicity {
 enum AdjustmentType {
   NONE
   FIXED_PERCENT
-  INDEX_IPCA
 }
 
 model Contract {
@@ -228,9 +232,12 @@ model Contract {
   description String?        @db.Text
   status      ContractStatus @default(ACTIVE)
 
-  // Supplier info
-  supplierName    String
-  supplierContact String?
+  // Contract type (inbound = we provide service, outbound = we consume service)
+  contractType ContractType @default(OUTBOUND)
+
+  // Counterparty info (supplier if OUTBOUND, client if INBOUND)
+  counterpartyName    String // New field that replaces supplierName
+  counterpartyContact String? // New field that replaces supplierContact
 
   // Ownership & categorization
   ownerUserId String
@@ -246,11 +253,17 @@ model Contract {
   customDays      Int? // for CUSTOM_DAYS periodicity
   autoRenew       Boolean     @default(true)
 
+  // Alerts & Notifications
+  alertsEnabled   Boolean   @default(true)
+  alertDaysBefore Int       @default(30) // Days before expiration to send alert
+  lastAlertSentAt DateTime?
+
   // Financial
-  valueAmount     Decimal        @db.Decimal(15, 2)
-  currency        String         @default("USD")
-  adjustmentType  AdjustmentType @default(NONE)
-  adjustmentValue Decimal?       @db.Decimal(5, 2) // percentage
+  valueAmount      Decimal        @db.Decimal(15, 2)
+  currency         String         @default("USD")
+  adjustmentType   AdjustmentType @default(NONE)
+  adjustmentValue  Decimal?       @db.Decimal(5, 2) // percentage
+  lastAdjustmentAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -265,7 +278,8 @@ model Contract {
   @@index([ownerUserId])
   @@index([status])
   @@index([nextRenewalDate])
-  @@index([supplierName])
+  @@index([counterpartyName])
+  @@index([contractType])
 }
 
 // ============================================
@@ -341,8 +355,13 @@ model RenewalHistory {
 enum AlertEventType {
   CONTRACT_DUE_SOON
   CONTRACT_EXPIRED
+  CONTRACT_RENEWED
   ADJUSTMENT_DUE
+  ADJUSTMENT_APPLIED
   RENEWAL_REMINDER
+  PLAN_LIMIT_REACHED
+  PAYMENT_FAILED
+  TEAM_INVITE
 }
 
 enum NotificationChannel {

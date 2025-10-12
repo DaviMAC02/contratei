@@ -120,7 +120,7 @@ export const contractRouter = createTRPCRouter({
       if (input.search) {
         where.OR = [
           { title: { contains: input.search, mode: "insensitive" } },
-          { supplierName: { contains: input.search, mode: "insensitive" } },
+          { counterpartyName: { contains: input.search, mode: "insensitive" } },
           { tags: { hasSome: [input.search] } },
         ];
       }
@@ -226,8 +226,9 @@ export const contractRouter = createTRPCRouter({
         orgId: z.string(),
         title: z.string().min(1).max(255),
         description: z.string().optional(),
-        supplierName: z.string().min(1),
-        supplierContact: z.string().optional(),
+        contractType: z.enum(["INBOUND", "OUTBOUND"]).default("OUTBOUND"),
+        counterpartyName: z.string().min(1),
+        counterpartyContact: z.string().optional(),
         ownerUserId: z.string(),
         tags: z.array(z.string()).default([]),
         costCenter: z.string().optional(),
@@ -263,6 +264,32 @@ export const contractRouter = createTRPCRouter({
         });
       }
 
+      // Warn if approaching limit (80%)
+      const limitThreshold = org.maxContracts * 0.8;
+      if (contractCount >= limitThreshold && contractCount < org.maxContracts) {
+        // Create notification for approaching limit
+        await ctx.prisma.notification.create({
+          data: {
+            orgId: input.orgId,
+            userId: ctx.session!.user.id,
+            eventType: "PLAN_LIMIT_REACHED",
+            channel: "IN_APP",
+            status: "PENDING",
+            title: "Limite de contratos próximo",
+            message: `Você está usando ${contractCount} de ${
+              org.maxContracts
+            } contratos (${Math.round(
+              (contractCount / org.maxContracts) * 100
+            )}%). Considere fazer upgrade do seu plano.`,
+            metadata: {
+              currentCount: contractCount,
+              maxCount: org.maxContracts,
+              percentage: Math.round((contractCount / org.maxContracts) * 100),
+            },
+          },
+        });
+      }
+
       const nextRenewalDate = calculateNextRenewalDate(
         input.startDate,
         input.periodicity,
@@ -280,8 +307,9 @@ export const contractRouter = createTRPCRouter({
           orgId: input.orgId,
           title: input.title,
           description: input.description,
-          supplierName: input.supplierName,
-          supplierContact: input.supplierContact,
+          contractType: input.contractType,
+          counterpartyName: input.counterpartyName,
+          counterpartyContact: input.counterpartyContact,
           ownerUserId: input.ownerUserId,
           tags: input.tags,
           costCenter: input.costCenter,
@@ -321,8 +349,9 @@ export const contractRouter = createTRPCRouter({
         id: z.string(),
         title: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
-        supplierName: z.string().min(1).optional(),
-        supplierContact: z.string().optional(),
+        contractType: z.enum(["INBOUND", "OUTBOUND"]).optional(),
+        counterpartyName: z.string().min(1).optional(),
+        counterpartyContact: z.string().optional(),
         ownerUserId: z.string().optional(),
         tags: z.array(z.string()).optional(),
         costCenter: z.string().optional(),

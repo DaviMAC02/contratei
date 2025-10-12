@@ -6,6 +6,7 @@ import { createTRPCReact } from "@trpc/react-query";
 import { useState } from "react";
 import superjson from "superjson";
 import type { AppRouter } from "@/server/root";
+import { SessionProvider } from "next-auth/react";
 
 export const trpc = createTRPCReact<AppRouter>();
 
@@ -46,7 +47,9 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <SessionProvider>{children}</SessionProvider>
+      </QueryClientProvider>
     </trpc.Provider>
   );
 }

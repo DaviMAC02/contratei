@@ -25,5 +25,7 @@ declare module "next-auth/jwt" {
     email?: string | null;
     name?: string | null;
     picture?: string | null;
+    iat?: number;
+    lastActivity?: number;
   }
 }

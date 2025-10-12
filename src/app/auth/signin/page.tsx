@@ -6,15 +6,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Loader2 } from "lucide-react";
+import { Mail, Loader2, Sparkles, Lock, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
+import {
+  Box,
+  Typography,
+  TextField,
+  Avatar,
+  Divider,
+  Alert,
+  CircularProgress,
+  Paper,
+} from "@mui/material";
+import { styled } from "@mui/material/styles";
 
 function SignInForm() {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const searchParams = useSearchParams();
   const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
+  const timeout = searchParams?.get("timeout");
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,26 +58,59 @@ function SignInForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <Mail className="h-6 w-6" />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      {/* Content */}
+      <Paper
+        elevation={0}
+        className="w-full max-w-md"
+        sx={{
+          borderRadius: 2,
+          border: "1px solid #e5e7eb",
+          boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+        }}
+      >
+        <Box className="p-8">
+          {/* Logo and Title */}
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-6">
+              <Image
+                src="/logo.svg"
+                alt="Contratei Logo"
+                width={180}
+                height={60}
+                priority
+              />
+            </div>
+            <Typography
+              variant="h5"
+              className="font-semibold text-gray-900 mb-2"
+            >
+              Entrar no Contratei
+            </Typography>
+            <Typography variant="body2" className="text-gray-500">
+              Acesse sua conta para gerenciar contratos
+            </Typography>
           </div>
-          <CardTitle className="text-2xl">Bem-vindo de volta</CardTitle>
-          <p className="text-sm text-muted-foreground mt-2">
-            Entre na sua conta para continuar
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-6">
+
+          {/* Timeout Alert */}
+          {timeout === "true" && (
+            <Alert
+              severity="warning"
+              className="mb-6 rounded-xl animate-slide-in-left"
+            >
+              ⏱️ Sua sessão expirou por inatividade. Por favor, faça login
+              novamente.
+            </Alert>
+          )}
+
           {/* Google Sign In */}
           <Button
             variant="outline"
-            className="w-full"
+            className="w-full mb-6 h-12 rounded-xl border-2 hover:border-primary hover:bg-primary/5 transition-all hover-lift"
             onClick={handleGoogleSignIn}
             disabled={isLoading}
           >
-            <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+            <svg className="mr-3 h-5 w-5" viewBox="0 0 24 24">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                 fill="#4285F4"
@@ -82,58 +128,93 @@ function SignInForm() {
                 fill="#EA4335"
               />
             </svg>
-            Continuar com Google
+            <span className="font-medium">Continuar com Google</span>
           </Button>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Ou continue com
-              </span>
-            </div>
-          </div>
+          <Divider className="my-6">
+            <Typography variant="caption" className="text-gray-500 px-4">
+              Ou continue com email
+            </Typography>
+          </Divider>
+          <Divider className="my-6">
+            <Typography variant="caption" className="text-gray-500 px-4">
+              Ou continue com email
+            </Typography>
+          </Divider>
 
           {/* Email Sign In */}
-          <form onSubmit={handleEmailSignIn} className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
+          <form onSubmit={handleEmailSignIn} className="space-y-5">
+            <Box>
+              <Typography
+                variant="body2"
+                className="font-medium text-gray-700 mb-2"
+              >
+                Endereço de Email
+              </Typography>
+              <TextField
+                fullWidth
                 type="email"
                 placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
+                variant="outlined"
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 2,
+                    "&:hover": {
+                      "& .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "primary.main",
+                      },
+                    },
+                  },
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <Mail className="h-5 w-5 text-gray-400 mr-2" />
+                  ),
+                }}
               />
-            </div>
+            </Box>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full h-12 rounded-xl font-medium hover-lift gradient-primary text-white"
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <CircularProgress
+                    size={20}
+                    className="mr-2"
+                    sx={{ color: "white" }}
+                  />
                   Enviando...
                 </>
               ) : (
                 <>
-                  <Mail className="mr-2 h-4 w-4" />
                   Entrar com Email
+                  <ArrowRight className="ml-2 h-5 w-5" />
                 </>
               )}
             </Button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground">
+          <Typography
+            variant="body2"
+            className="text-center text-gray-600 mt-6"
+          >
             Não tem uma conta?{" "}
-            <Link href="/auth/signup" className="text-primary hover:underline">
+            <Link
+              href="/auth/signup"
+              className="text-primary font-semibold hover:underline animated-underline"
+            >
               Criar conta
             </Link>
-          </p>
-        </CardContent>
-      </Card>
+          </Typography>
+        </Box>
+      </Paper>
     </div>
   );
 }

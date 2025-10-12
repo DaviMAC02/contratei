@@ -52,7 +52,12 @@ export const billingRouter = createTRPCRouter({
   getSubscription: orgProcedure
     .input(z.object({ orgId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const org = (ctx as any).org;
+      // Validate org membership and get org
+      const { org } = await validateOrgMembership(
+        ctx.prisma,
+        ctx.session!.user.id,
+        input.orgId
+      );
 
       if (!org.stripeSubscriptionId) {
         return {
@@ -97,6 +102,42 @@ export const billingRouter = createTRPCRouter({
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Price ID not configured for this plan and currency",
+        });
+      }
+
+      // Validate downgrade: check if current usage exceeds new plan limits
+      const [contractCount, userCount] = await Promise.all([
+        ctx.prisma.contract.count({
+          where: { orgId: input.orgId },
+        }),
+        ctx.prisma.orgMember.count({
+          where: { orgId: input.orgId },
+        }),
+      ]);
+
+      if (contractCount > planConfig.maxContracts) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Cannot downgrade to ${
+            input.plan
+          }. You have ${contractCount} contracts but this plan allows only ${
+            planConfig.maxContracts
+          }. Please archive or delete ${
+            contractCount - planConfig.maxContracts
+          } contracts before downgrading.`,
+        });
+      }
+
+      if (userCount > planConfig.maxUsers) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Cannot downgrade to ${
+            input.plan
+          }. You have ${userCount} users but this plan allows only ${
+            planConfig.maxUsers
+          }. Please remove ${
+            userCount - planConfig.maxUsers
+          } users before downgrading.`,
         });
       }
 
@@ -187,7 +228,12 @@ export const billingRouter = createTRPCRouter({
   getPlans: orgProcedure
     .input(z.object({ orgId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const org = (ctx as any).org;
+      // Validate org membership and get org
+      const { org } = await validateOrgMembership(
+        ctx.prisma,
+        ctx.session!.user.id,
+        input.orgId
+      );
       const currency = org.currency as Currency;
 
       return Object.entries(PLANS).map(([key, plan]) => ({
@@ -195,6 +241,7 @@ export const billingRouter = createTRPCRouter({
         name: plan.name,
         maxContracts: plan.maxContracts,
         maxUsers: plan.maxUsers,
+        features: plan.features,
         price: plan.price[currency],
         isCurrentPlan: org.plan === key,
       }));

@@ -171,8 +171,9 @@ async function main() {
     data: {
       orgId: orgBR.id,
       title: "Contrato de Marketing Digital",
-      supplierName: "Agência Digital XYZ",
-      supplierContact: "contato@agenciadigital.com",
+      contractType: "OUTBOUND",
+      counterpartyName: "Agência Digital XYZ",
+      counterpartyContact: "contato@agenciadigital.com",
       ownerUserId: owner.id,
       startDate: new Date("2024-01-15"),
       endDate: new Date("2025-01-15"),
@@ -195,8 +196,8 @@ async function main() {
     data: {
       orgId: orgBR.id,
       title: "Licença Microsoft 365",
-      supplierName: "Microsoft Corporation",
-      supplierContact: "suporte@microsoft.com.br",
+      counterpartyName: "Microsoft Corporation",
+      counterpartyContact: "suporte@microsoft.com.br",
       ownerUserId: admin.id,
       startDate: new Date("2024-03-01"),
       endDate: new Date("2025-03-01"),
@@ -217,8 +218,8 @@ async function main() {
     data: {
       orgId: orgBR.id,
       title: "Hospedagem AWS",
-      supplierName: "Amazon Web Services",
-      supplierContact: "aws-suporte@amazon.com",
+      counterpartyName: "Amazon Web Services",
+      counterpartyContact: "aws-suporte@amazon.com",
       ownerUserId: manager.id,
       startDate: new Date("2024-06-01"),
       periodicity: "MONTHLY",
@@ -240,8 +241,8 @@ async function main() {
     data: {
       orgId: orgBR.id,
       title: "Contrato de Limpeza",
-      supplierName: "Limpeza Total LTDA",
-      supplierContact: "contato@limpezatotal.com.br",
+      counterpartyName: "Limpeza Total LTDA",
+      counterpartyContact: "contato@limpezatotal.com.br",
       ownerUserId: admin.id,
       startDate: new Date("2024-01-01"),
       endDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000), // +45 days
@@ -251,7 +252,8 @@ async function main() {
       valueAmount: 12000.0,
       currency: "BRL",
       status: "DUE_SOON",
-      adjustmentType: "INDEX_IPCA",
+      adjustmentType: "FIXED_PERCENT",
+      adjustmentValue: 5.0, // 5% annual adjustment
       costCenter: "Operações",
       tags: ["limpeza", "facilities"],
       notes: "Contrato de serviços de limpeza do escritório.",
@@ -264,8 +266,8 @@ async function main() {
     data: {
       orgId: orgBR.id,
       title: "Seguro Empresarial",
-      supplierName: "Seguradora ABC",
-      supplierContact: "seguros@seguradoraabc.com.br",
+      counterpartyName: "Seguradora ABC",
+      counterpartyContact: "seguros@seguradoraabc.com.br",
       ownerUserId: owner.id,
       startDate: new Date("2023-01-01"),
       endDate: new Date("2024-01-01"),
@@ -288,8 +290,8 @@ async function main() {
     data: {
       orgId: orgBR.id,
       title: "Software de CRM Antigo",
-      supplierName: "CRM Solutions Inc",
-      supplierContact: "suporte@crmsolutions.com",
+      counterpartyName: "CRM Solutions Inc",
+      counterpartyContact: "suporte@crmsolutions.com",
       ownerUserId: manager.id,
       startDate: new Date("2023-06-01"),
       endDate: new Date("2024-06-01"),
@@ -503,8 +505,8 @@ async function main() {
     data: {
       orgId: orgUS.id,
       title: "SaaS Subscription",
-      supplierName: "CloudService Inc",
-      supplierContact: "support@cloudservice.com",
+      counterpartyName: "CloudService Inc",
+      counterpartyContact: "support@cloudservice.com",
       ownerUserId: ownerUS.id,
       startDate: new Date("2024-06-01"),
       periodicity: "MONTHLY",

@@ -11,7 +11,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Resend({
       apiKey: process.env.RESEND_API_KEY,
-      from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+      from: process.env.RESEND_FROM_EMAIL || "contato@contratei.co",
       sendVerificationRequest: async ({ identifier, url, provider }) => {
         try {
           const { Resend: ResendClient } = await import("resend");
@@ -51,6 +51,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60, // 24 hours - session will be updated if older than this
   },
   cookies: {
     sessionToken: {
@@ -73,6 +75,45 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user, account, profile, email, credentials }) {
       return true;
     },
+    async redirect({ url, baseUrl }) {
+      // If the url is already an absolute URL, check if it's from our domain
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      } else if (new URL(url).origin === baseUrl) {
+        return url;
+      }
+
+      // For sign-in redirects, check user's organizations
+      if (
+        url === baseUrl ||
+        url === `${baseUrl}/` ||
+        url === `${baseUrl}/select-org`
+      ) {
+        try {
+          // Get the session to find the user
+          const session = await auth();
+          if (session?.user?.id) {
+            // Get user's organizations
+            const orgs = await prisma.orgMember.findMany({
+              where: { userId: session.user.id },
+              include: { org: true },
+            });
+
+            // If user has exactly one org, redirect directly to dashboard with that orgId
+            if (orgs.length === 1) {
+              return `${baseUrl}/dashboard?orgId=${orgs[0].orgId}`;
+            }
+
+            // If user has multiple orgs or no orgs, go to select-org
+            return `${baseUrl}/select-org`;
+          }
+        } catch (error) {
+          console.error("Error checking user orgs in redirect:", error);
+        }
+      }
+
+      return baseUrl;
+    },
     async session({ token, session }) {
       if (token && session.user) {
         session.user.id = token.id as string;
@@ -89,6 +130,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.name = user.name;
         token.picture = user.image;
       }
+
+      // Add issued at time for tracking token age
+      if (!token.iat) {
+        token.iat = Math.floor(Date.now() / 1000);
+      }
+
+      // Update last activity timestamp on every request
+      token.lastActivity = Math.floor(Date.now() / 1000);
+
       return token;
     },
   },

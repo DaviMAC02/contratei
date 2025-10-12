@@ -28,7 +28,7 @@ export default function OnboardingPage() {
   });
   const [contractData, setContractData] = useState({
     title: "",
-    supplierName: "",
+    counterpartyName: "",
     startDate: "",
     valueAmount: "",
     periodicity: "MONTHLY" as const,
@@ -51,11 +51,11 @@ export default function OnboardingPage() {
   };
 
   const handleCreateContract = async (orgId: string) => {
-    if (contractData.title && contractData.supplierName) {
+    if (contractData.title && contractData.counterpartyName) {
       await createContractMutation.mutateAsync({
         orgId,
         title: contractData.title,
-        supplierName: contractData.supplierName,
+        counterpartyName: contractData.counterpartyName,
         ownerUserId: "", // Will be set on server
         startDate: new Date(contractData.startDate),
         valueAmount: Number(contractData.valueAmount),
@@ -202,15 +202,15 @@ export default function OnboardingPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="supplier">Fornecedor</Label>
+                  <Label htmlFor="supplier">Fornecedor / Cliente</Label>
                   <Input
                     id="supplier"
-                    placeholder="Nome da empresa fornecedora"
-                    value={contractData.supplierName}
+                    placeholder="Nome da empresa"
+                    value={contractData.counterpartyName}
                     onChange={(e) =>
                       setContractData({
                         ...contractData,
-                        supplierName: e.target.value,
+                        counterpartyName: e.target.value,
                       })
                     }
                   />

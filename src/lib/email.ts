@@ -4,6 +4,24 @@ const resend = new Resend(process.env.RESEND_API_KEY!);
 
 export { resend };
 
+// Helper function to send emails
+export async function sendEmail({
+  to,
+  subject,
+  html,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+}) {
+  return await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || "contato@contratei.co",
+    to,
+    subject,
+    html,
+  });
+}
+
 // Email templates
 export const emailTemplates = {
   welcome: {
@@ -51,12 +69,12 @@ export const emailTemplates = {
       subject: (days: number) => `Contrato vence em ${days} dias`,
       getHtml: (
         contractTitle: string,
-        supplierName: string,
+        counterpartyName: string,
         dueDate: string,
         days: number
       ) => `
         <h1>⚠️ Contrato vence em breve</h1>
-        <p>O contrato <strong>${contractTitle}</strong> com <strong>${supplierName}</strong> vence em <strong>${days} dias</strong>.</p>
+        <p>O contrato <strong>${contractTitle}</strong> com <strong>${counterpartyName}</strong> vence em <strong>${days} dias</strong>.</p>
         <p>Data de vencimento: ${dueDate}</p>
         <a href="${process.env.NEXT_PUBLIC_APP_URL}/contracts">Ver Contratos</a>
       `,
@@ -65,12 +83,12 @@ export const emailTemplates = {
       subject: (days: number) => `Contract due in ${days} days`,
       getHtml: (
         contractTitle: string,
-        supplierName: string,
+        counterpartyName: string,
         dueDate: string,
         days: number
       ) => `
         <h1>⚠️ Contract due soon</h1>
-        <p>The contract <strong>${contractTitle}</strong> with <strong>${supplierName}</strong> is due in <strong>${days} days</strong>.</p>
+        <p>The contract <strong>${contractTitle}</strong> with <strong>${counterpartyName}</strong> is due in <strong>${days} days</strong>.</p>
         <p>Due date: ${dueDate}</p>
         <a href="${process.env.NEXT_PUBLIC_APP_URL}/contracts">View Contracts</a>
       `,
@@ -79,18 +97,18 @@ export const emailTemplates = {
   contractExpired: {
     "pt-BR": {
       subject: "Contrato vencido",
-      getHtml: (contractTitle: string, supplierName: string) => `
+      getHtml: (contractTitle: string, counterpartyName: string) => `
         <h1>🔴 Contrato vencido</h1>
-        <p>O contrato <strong>${contractTitle}</strong> com <strong>${supplierName}</strong> venceu.</p>
+        <p>O contrato <strong>${contractTitle}</strong> com <strong>${counterpartyName}</strong> venceu.</p>
         <p>Renovação ou ação imediata necessária.</p>
         <a href="${process.env.NEXT_PUBLIC_APP_URL}/contracts">Ver Contratos</a>
       `,
     },
     "en-US": {
       subject: "Contract expired",
-      getHtml: (contractTitle: string, supplierName: string) => `
+      getHtml: (contractTitle: string, counterpartyName: string) => `
         <h1>🔴 Contract expired</h1>
-        <p>The contract <strong>${contractTitle}</strong> with <strong>${supplierName}</strong> has expired.</p>
+        <p>The contract <strong>${contractTitle}</strong> with <strong>${counterpartyName}</strong> has expired.</p>
         <p>Renewal or immediate action required.</p>
         <a href="${process.env.NEXT_PUBLIC_APP_URL}/contracts">View Contracts</a>
       `,

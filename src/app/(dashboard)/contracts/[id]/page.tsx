@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useTranslation } from "@/lib/use-translation";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatDate,
+  getStatusTranslationKey,
+} from "@/lib/utils";
 import {
   ArrowLeft,
   Edit,
@@ -31,6 +35,7 @@ import Link from "next/link";
 export default function ContractDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t, locale } = useTranslation();
   const [orgId, setOrgId] = useState<string>("");
 
@@ -39,14 +44,19 @@ export default function ContractDetailPage() {
   const orgsQuery = trpc.org.list.useQuery();
 
   useEffect(() => {
-    if (orgsQuery.data && orgsQuery.data.length > 0) {
+    // First try to get orgId from URL
+    const orgIdFromUrl = searchParams.get("orgId");
+    if (orgIdFromUrl) {
+      setOrgId(orgIdFromUrl);
+    } else if (orgsQuery.data && orgsQuery.data.length > 0) {
+      // Fallback to first org if no orgId in URL
       setOrgId(orgsQuery.data[0].id);
     }
-  }, [orgsQuery.data]);
+  }, [searchParams, orgsQuery.data]);
 
   const contractQuery = trpc.contract.get.useQuery(
     { orgId, id: contractId },
-    { enabled: !!orgId }
+    { enabled: !!orgId && !!contractId }
   );
 
   const filesQuery = trpc.file.listFiles.useQuery(
@@ -62,7 +72,7 @@ export default function ContractDetailPage() {
 
   const deleteMutation = trpc.contract.delete.useMutation({
     onSuccess: () => {
-      router.push("/contracts");
+      router.push(`/contracts?orgId=${orgId}`);
     },
   });
 
@@ -98,7 +108,7 @@ export default function ContractDetailPage() {
     <div className="p-8">
       {/* Header */}
       <div className="mb-6">
-        <Link href="/contracts">
+        <Link href={`/contracts?orgId=${orgId}`}>
           <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
@@ -123,10 +133,20 @@ export default function ContractDetailPage() {
                   : "secondary"
               }
             >
-              {t(`status.${contract.status.toLowerCase()}` as any)}
+              {t(`status.${getStatusTranslationKey(contract.status)}` as any)}
+            </Badge>
+            <Badge
+              variant={
+                contract.contractType === "INBOUND" ? "default" : "outline"
+              }
+              className="ml-2"
+            >
+              {contract.contractType === "INBOUND"
+                ? "� Prestando"
+                : "� Contratando"}
             </Badge>
           </div>
-          <p className="text-muted-foreground">{contract.supplierName}</p>
+          <p className="text-muted-foreground">{contract.counterpartyName}</p>
         </div>
 
         <div className="flex gap-2">
@@ -134,7 +154,7 @@ export default function ContractDetailPage() {
             <RefreshCw className="h-4 w-4 mr-2" />
             {t("contracts.renew")}
           </Button>
-          <Link href={`/contracts/${contractId}/edit`}>
+          <Link href={`/contracts/${contractId}/edit?orgId=${orgId}`}>
             <Button variant="outline">
               <Edit className="h-4 w-4 mr-2" />
               {t("contracts.edit")}
@@ -227,12 +247,12 @@ export default function ContractDetailPage() {
           <CardContent className="space-y-3">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Nome:</span>
-              <span className="font-medium">{contract.supplierName}</span>
+              <span className="font-medium">{contract.counterpartyName}</span>
             </div>
-            {contract.supplierContact && (
+            {contract.counterpartyContact && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Contato:</span>
-                <span>{contract.supplierContact}</span>
+                <span>{contract.counterpartyContact}</span>
               </div>
             )}
             {contract.notes && (

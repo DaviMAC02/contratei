@@ -3,32 +3,71 @@
 import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc-client";
 import { skipToken } from "@tanstack/react-query";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/lib/use-translation";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatDate,
+  getStatusTranslationKey,
+} from "@/lib/utils";
 import {
   FileText,
   AlertCircle,
   TrendingUp,
   DollarSign,
   Plus,
+  ArrowUpRight,
 } from "lucide-react";
 import Link from "next/link";
 import { DashboardPageWrapper } from "@/components/layout/dashboard-page-wrapper";
+import {
+  Card as MuiCard,
+  CardContent as MuiCardContent,
+  Box,
+  Typography,
+  Chip,
+  IconButton,
+  LinearProgress,
+  Avatar,
+  Button,
+  Skeleton,
+} from "@mui/material";
+import { styled } from "@mui/material/styles";
 
 export default function DashboardPage() {
   return (
     <DashboardPageWrapper>
       {({ orgId, org }) => <DashboardContent orgId={orgId} org={org} />}
     </DashboardPageWrapper>
+  );
+}
+
+// Styled components for professional stats cards
+const StatsCard = styled(MuiCard)(({ theme }) => ({
+  position: "relative",
+  overflow: "hidden",
+  borderRadius: 8,
+  border: "1px solid #e5e7eb",
+  boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+  transition: "all 0.2s ease",
+  backgroundColor: "#ffffff",
+  "&:hover": {
+    boxShadow: "0 4px 12px 0 rgba(0, 0, 0, 0.1)",
+    borderColor: "#d1d5db",
+  },
+}));
+
+function StatsCardSkeleton() {
+  return (
+    <StatsCard>
+      <MuiCardContent className="p-5">
+        <Box className="flex items-start justify-between mb-3">
+          <Skeleton className="w-11 h-11 rounded-md" />
+          <Skeleton className="w-16 h-4" />
+        </Box>
+        <Skeleton className="w-16 h-9 mb-2" />
+        <Skeleton className="w-24 h-4" />
+      </MuiCardContent>
+    </StatsCard>
   );
 }
 
@@ -49,188 +88,397 @@ function DashboardContent({ orgId, org }: { orgId: string; org: any }) {
   const stats = statsQuery.data;
   const contracts = contractsQuery.data?.contracts || [];
 
+  const isLoadingStats = statsQuery.isLoading;
+  const isLoadingContracts = contractsQuery.isLoading;
+
   return (
-    <div className="p-4 md:p-6 lg:p-8">
+    <div className="p-4 md:p-6 lg:p-8 bg-gray-50/50 min-h-screen">
       {/* Header */}
-      <div className="mb-6 md:mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+      <Box className="mb-8">
+        <Typography variant="h4" className="font-semibold text-gray-900 mb-1">
           {t("dashboard.welcome")},{" "}
-          {session?.user?.name?.split(" ")[0] || "User"}!
-        </h1>
-        <p className="text-sm md:text-base text-muted-foreground mt-1">
-          Aqui está um resumo dos seus contratos.
-        </p>
-      </div>
+          {session?.user?.name?.split(" ")[0] || "User"}
+        </Typography>
+        <Typography variant="body2" className="text-gray-500">
+          Visão geral dos seus contratos e métricas
+        </Typography>
+      </Box>
 
       {/* Stats Grid */}
-      <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6 md:mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t("dashboard.totalContracts")}
-            </CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.total || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats?.active || 0} {t("status.active").toLowerCase()}
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {isLoadingStats ? (
+          <>
+            <StatsCardSkeleton />
+            <StatsCardSkeleton />
+            <StatsCardSkeleton />
+            <StatsCardSkeleton />
+          </>
+        ) : (
+          <>
+            <StatsCard>
+              <MuiCardContent className="p-5">
+                <Box className="flex items-start justify-between mb-3">
+                  <Box
+                    sx={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 1.5,
+                      bgcolor: "#e8f4f2",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <FileText
+                      className="h-5 w-5"
+                      style={{ color: "#1d2b48" }}
+                    />
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    className="text-gray-500 font-medium"
+                  >
+                    +{stats?.active || 0} ativos
+                  </Typography>
+                </Box>
+                <Typography
+                  variant="h4"
+                  className="font-semibold text-gray-900 mb-0.5"
+                >
+                  {stats?.total || 0}
+                </Typography>
+                <Typography variant="body2" className="text-gray-500 text-sm">
+                  {t("dashboard.totalContracts")}
+                </Typography>
+              </MuiCardContent>
+            </StatsCard>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t("dashboard.expiringSoon")}
-            </CardTitle>
-            <AlertCircle className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.dueSoon || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats?.expiring30 || 0} em 30 dias
-            </p>
-          </CardContent>
-        </Card>
+            <StatsCard>
+              <MuiCardContent className="p-5">
+                <Box className="flex items-start justify-between mb-3">
+                  <Box
+                    sx={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 1.5,
+                      bgcolor: "#e8f4f2",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <AlertCircle
+                      className="h-5 w-5"
+                      style={{ color: "#1d2b48" }}
+                    />
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    className="text-gray-500 font-medium"
+                  >
+                    {stats?.expiring30 || 0} em 30d
+                  </Typography>
+                </Box>
+                <Typography
+                  variant="h4"
+                  className="font-semibold text-gray-900 mb-0.5"
+                >
+                  {stats?.dueSoon || 0}
+                </Typography>
+                <Typography variant="body2" className="text-gray-500 text-sm">
+                  {t("dashboard.expiringSoon")}
+                </Typography>
+              </MuiCardContent>
+            </StatsCard>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t("dashboard.expired")}
-            </CardTitle>
-            <AlertCircle className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">
-              {stats?.expired || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Requer atenção imediata
-            </p>
-          </CardContent>
-        </Card>
+            <StatsCard>
+              <MuiCardContent className="p-5">
+                <Box className="flex items-start justify-between mb-3">
+                  <Box
+                    sx={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 1.5,
+                      bgcolor: "#e8f4f2",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <AlertCircle
+                      className="h-5 w-5"
+                      style={{ color: "#1d2b48" }}
+                    />
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    className="text-red-600 font-medium"
+                  >
+                    Atenção
+                  </Typography>
+                </Box>
+                <Typography
+                  variant="h4"
+                  className="font-semibold text-gray-900 mb-0.5"
+                >
+                  {stats?.expired || 0}
+                </Typography>
+                <Typography variant="body2" className="text-gray-500 text-sm">
+                  {t("dashboard.expired")}
+                </Typography>
+              </MuiCardContent>
+            </StatsCard>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t("dashboard.totalValue")}
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(
-                stats?.totalValue || 0,
-                org?.currency as any,
-                org?.locale
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">Contratos ativos</p>
-          </CardContent>
-        </Card>
+            <StatsCard>
+              <MuiCardContent className="p-5">
+                <Box className="flex items-start justify-between mb-3">
+                  <Box
+                    sx={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 1.5,
+                      bgcolor: "#e8f4f2",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <DollarSign
+                      className="h-5 w-5"
+                      style={{ color: "#1d2b48" }}
+                    />
+                  </Box>
+                </Box>
+                <Typography
+                  variant="h5"
+                  className="font-semibold text-gray-900 mb-0.5"
+                >
+                  {formatCurrency(
+                    stats?.totalValue || 0,
+                    org?.currency as any,
+                    org?.locale
+                  )}
+                </Typography>
+                <Typography variant="body2" className="text-gray-500 text-sm">
+                  {t("dashboard.totalValue")}
+                </Typography>
+              </MuiCardContent>
+            </StatsCard>
+          </>
+        )}
       </div>
 
       {/* Recent Contracts */}
-      <Card>
-        <CardHeader>
+      <MuiCard
+        sx={{
+          borderRadius: 1,
+          border: "1px solid #e5e7eb",
+          boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+        }}
+      >
+        <Box className="p-6 border-b border-gray-200">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <CardTitle className="text-lg md:text-xl">
+              <Typography
+                variant="h6"
+                className="font-semibold text-gray-900 mb-1"
+              >
                 {t("dashboard.recentContracts")}
-              </CardTitle>
-              <CardDescription className="text-sm">
+              </Typography>
+              <Typography variant="body2" className="text-gray-500 text-sm">
                 Últimos contratos adicionados ou atualizados
-              </CardDescription>
+              </Typography>
             </div>
-            <Link href="/contracts/new" className="w-full sm:w-auto">
-              <Button className="w-full sm:w-auto">
+            <Link
+              href={`/contracts/new?orgId=${orgId}`}
+              className="w-full sm:w-auto"
+            >
+              <Button
+                variant="contained"
+                size="small"
+                sx={{
+                  bgcolor: "#1d2b48",
+                  "&:hover": {
+                    bgcolor: "#b3efe5",
+                    color: "#1d2b48",
+                    border: "1px solid rgba(0, 0, 0, 0.2)",
+                  },
+                }}
+                className="w-full sm:w-auto"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 {t("contracts.new")}
               </Button>
             </Link>
           </div>
-        </CardHeader>
-        <CardContent>
-          {contracts.length === 0 ? (
-            <div className="text-center py-8">
-              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-sm md:text-base text-muted-foreground mb-4">
-                Você ainda não tem contratos cadastrados.
-              </p>
-              <Link href="/contracts/new">
-                <Button className="w-full sm:w-auto">
+        </Box>
+        <MuiCardContent className="p-6">
+          {isLoadingContracts ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div
+                  key={i}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-100 last:border-0 last:pb-0"
+                >
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-6 w-20" />
+                    <Skeleton className="h-6 w-24" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : contracts.length === 0 ? (
+            <div className="text-center py-12">
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 1.5,
+                  bgcolor: "#f9fafb",
+                  border: "2px dashed #d1d5db",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto 16px",
+                }}
+              >
+                <FileText className="h-7 w-7 text-gray-400" />
+              </Box>
+              <Typography
+                variant="h6"
+                className="text-gray-900 font-semibold mb-2"
+              >
+                Nenhum contrato cadastrado
+              </Typography>
+              <Typography variant="body2" className="text-gray-500 mb-6">
+                Comece criando seu primeiro contrato
+              </Typography>
+              <Link href={`/contracts/new?orgId=${orgId}`}>
+                <Button
+                  variant="contained"
+                  sx={{
+                    bgcolor: "#1d2b48",
+                    "&:hover": {
+                      bgcolor: "#b3efe5",
+                      color: "#1d2b48",
+                      border: "1px solid rgba(0, 0, 0, 0.2)",
+                    },
+                  }}
+                >
                   <Plus className="h-4 w-4 mr-2" />
-                  Criar primeiro contrato
+                  Criar contrato
                 </Button>
               </Link>
             </div>
           ) : (
-            <div className="space-y-3 md:space-y-4">
+            <div className="space-y-3">
               {contracts.map((contract) => (
-                <div
+                <Box
                   key={contract.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 md:p-4 border rounded-lg hover:bg-accent/50 transition-colors gap-3 sm:gap-4"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50/50 transition-all gap-4"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <h3 className="font-medium text-sm md:text-base truncate">
+                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                      <Typography
+                        variant="subtitle1"
+                        className="font-medium text-gray-900 truncate"
+                      >
                         {contract.title}
-                      </h3>
-                      <Badge
-                        variant={
+                      </Typography>
+                      <Chip
+                        label={t(
+                          `status.${getStatusTranslationKey(
+                            contract.status
+                          )}` as any
+                        )}
+                        size="small"
+                        variant="outlined"
+                        color={
                           contract.status === "ACTIVE"
                             ? "success"
                             : contract.status === "DUE_SOON"
                             ? "warning"
-                            : "destructive"
+                            : "error"
                         }
-                        className="text-xs"
-                      >
-                        {t(`status.${contract.status.toLowerCase()}` as any)}
-                      </Badge>
+                        sx={{
+                          fontWeight: 500,
+                          fontSize: "0.75rem",
+                          height: 22,
+                        }}
+                      />
                     </div>
-                    <p className="text-xs md:text-sm text-muted-foreground truncate">
-                      {contract.supplierName} • {contract.owner.name}
-                    </p>
+                    <Typography
+                      variant="body2"
+                      className="text-gray-500 truncate mb-1 text-sm"
+                    >
+                      {contract.counterpartyName} • {contract.owner.name}
+                    </Typography>
                     {contract.nextRenewalDate && (
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <Typography
+                        variant="caption"
+                        className="text-gray-400 text-xs"
+                      >
                         Próxima renovação:{" "}
                         {formatDate(contract.nextRenewalDate, org?.locale)}
-                      </p>
+                      </Typography>
                     )}
                   </div>
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 sm:text-right">
-                    <p className="font-semibold text-sm md:text-base">
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-3 sm:text-right">
+                    <Typography
+                      variant="subtitle1"
+                      className="font-semibold text-gray-900"
+                    >
                       {formatCurrency(
                         Number(contract.valueAmount),
                         contract.currency as any,
                         org?.locale
                       )}
-                    </p>
+                    </Typography>
                     <Link href={`/contracts/${contract.id}`}>
                       <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs md:text-sm"
+                        variant="text"
+                        size="small"
+                        sx={{
+                          color: "#1d2b48",
+                          "&:hover": {
+                            bgcolor: "#b3efe5",
+                            color: "#1d2b48",
+                            border: "1px solid rgba(0, 0, 0, 0.2)",
+                          },
+                        }}
                       >
                         {t("contracts.view")}
                       </Button>
                     </Link>
                   </div>
-                </div>
+                </Box>
               ))}
-              <div className="text-center pt-4">
-                <Link href="/contracts">
-                  <Button variant="outline" className="w-full sm:w-auto">
+              <div className="text-center pt-4 border-t border-gray-200">
+                <Link href={`/contracts?orgId=${orgId}`}>
+                  <Button
+                    variant="text"
+                    sx={{
+                      color: "#1d2b48",
+                      "&:hover": {
+                        bgcolor: "#b3efe5",
+                        color: "#1d2b48",
+                        border: "1px solid rgba(0, 0, 0, 0.2)",
+                      },
+                    }}
+                  >
                     Ver todos os contratos
+                    <ArrowUpRight className="h-4 w-4 ml-2" />
                   </Button>
                 </Link>
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </MuiCardContent>
+      </MuiCard>
     </div>
   );
 }

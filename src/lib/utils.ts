@@ -33,3 +33,15 @@ export function slugify(text: string) {
     .replace(/[^\w\-]+/g, "")
     .replace(/\-\-+/g, "-");
 }
+
+// Convert status enum (SNAKE_CASE) to translation key (camelCase)
+export function getStatusTranslationKey(status: string): string {
+  // Convert DUE_SOON to dueSoon, IN_RENEWAL to inRenewal, etc.
+  return status
+    .toLowerCase()
+    .split("_")
+    .map((word, index) =>
+      index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)
+    )
+    .join("");
+}

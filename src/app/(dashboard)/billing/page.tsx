@@ -17,6 +17,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useOrgSelection } from "@/hooks/use-org-selection";
+import { trackPlanChange } from "@/components/providers/posthog-provider";
 
 export default function BillingPage() {
   const { t, locale } = useTranslation();
@@ -35,6 +36,22 @@ export default function BillingPage() {
     { enabled: !!orgId }
   );
 
+  // CRITICAL: All hooks must be called before any early returns
+  const checkoutMutation = trpc.billing.createCheckoutSession.useMutation({
+    onSuccess: (data) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+  });
+
+  const portalMutation = trpc.billing.createPortalSession.useMutation({
+    onSuccess: (data) => {
+      window.open(data.url, "_blank");
+    },
+  });
+
+  // Early returns after all hooks
   if (orgsLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -55,21 +72,12 @@ export default function BillingPage() {
     );
   }
 
-  const checkoutMutation = trpc.billing.createCheckoutSession.useMutation({
-    onSuccess: (data) => {
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    },
-  });
-
-  const portalMutation = trpc.billing.createPortalSession.useMutation({
-    onSuccess: (data) => {
-      window.open(data.url, "_blank");
-    },
-  });
-
   const handleUpgrade = async (plan: string, interval: string) => {
+    // Track plan change
+    if (org) {
+      trackPlanChange(org.plan, plan, orgId);
+    }
+
     await checkoutMutation.mutateAsync({
       orgId,
       plan: plan as any,
@@ -213,7 +221,7 @@ export default function BillingPage() {
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                     <span className="text-sm">
-                      {plan.maxContracts >= 1000
+                      {plan.maxContracts >= 999999
                         ? "Contratos ilimitados"
                         : `Até ${plan.maxContracts} contratos`}
                     </span>
@@ -221,42 +229,34 @@ export default function BillingPage() {
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                     <span className="text-sm">
-                      {plan.maxUsers >= 50
+                      {plan.maxUsers >= 999999
                         ? "Usuários ilimitados"
                         : `Até ${plan.maxUsers} usuários`}
                     </span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">Alertas automáticos</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">Renovação automática</span>
-                  </li>
-                  {plan.name !== "Free" && plan.name !== "Starter" && (
-                    <>
-                      <li className="flex items-start gap-2">
-                        <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm">Reajustes automáticos</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm">Upload de arquivos</span>
-                      </li>
-                    </>
+                  {(plan as any).features?.automaticAlerts && (
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm">Alertas automáticos</span>
+                    </li>
                   )}
-                  {(plan.name === "Pro" || plan.name === "Studio") && (
-                    <>
-                      <li className="flex items-start gap-2">
-                        <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm">Suporte prioritário</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm">API personalizada</span>
-                      </li>
-                    </>
+                  {(plan as any).features?.automaticRenewal && (
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm">Renovação automática</span>
+                    </li>
+                  )}
+                  {(plan as any).features?.automaticAdjustments && (
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm">Reajustes automáticos</span>
+                    </li>
+                  )}
+                  {(plan as any).features?.fileUpload && (
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm">Upload de arquivos</span>
+                    </li>
                   )}
                 </ul>
 

@@ -10,6 +10,7 @@ import { TRPCError } from "@trpc/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
+import { hasPlanFeature, type PlanName } from "@/lib/stripe";
 
 // Helper to validate org membership
 async function validateOrgMembership(
@@ -57,12 +58,21 @@ export const fileRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       // Validate org membership and check role
-      const { userRole } = await validateOrgMembership(
+      const { org, userRole } = await validateOrgMembership(
         ctx.prisma,
         ctx.session!.user.id,
         input.orgId
       );
       checkRole(userRole, "OWNER", "ADMIN", "MANAGER");
+
+      // Check if plan supports file upload
+      if (!hasPlanFeature(org.plan as PlanName, "fileUpload")) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Your plan does not support file uploads. Please upgrade to upload files.",
+        });
+      }
 
       // Verify contract belongs to org
       const contract = await ctx.prisma.contract.findUnique({

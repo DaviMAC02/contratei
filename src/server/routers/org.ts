@@ -82,12 +82,42 @@ export const orgRouter = createTRPCRouter({
   get: orgProcedure
     .input(z.object({ orgId: z.string() }))
     .query(async ({ ctx, input }) => {
-      // Validate org membership and return org
-      const { org } = await validateOrgMembership(
-        ctx.prisma,
-        ctx.session!.user.id,
-        input.orgId
-      );
+      // Get org with member count
+      const org = await ctx.prisma.org.findUnique({
+        where: { id: input.orgId },
+        include: {
+          _count: {
+            select: {
+              members: true,
+            },
+          },
+        },
+      });
+
+      if (!org) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Organization not found",
+        });
+      }
+
+      // Validate user has access
+      const membership = await ctx.prisma.orgMember.findUnique({
+        where: {
+          orgId_userId: {
+            orgId: input.orgId,
+            userId: ctx.session!.user.id,
+          },
+        },
+      });
+
+      if (!membership) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have access to this organization",
+        });
+      }
+
       return org;
     }),
 
@@ -232,6 +262,33 @@ export const orgRouter = createTRPCRouter({
         throw new TRPCError({
           code: "FORBIDDEN",
           message: `You have reached the maximum number of users (${org.maxUsers}) for your plan.`,
+        });
+      }
+
+      // Warn if approaching limit (80%)
+      const limitThreshold = org.maxUsers * 0.8;
+      if (memberCount >= limitThreshold && memberCount < org.maxUsers) {
+        // Create notification for approaching limit
+        await ctx.prisma.notification.create({
+          data: {
+            orgId: input.orgId,
+            userId: ctx.session!.user.id,
+            eventType: "PLAN_LIMIT_REACHED",
+            channel: "IN_APP",
+            status: "PENDING",
+            title: "Limite de usuários próximo",
+            message: `Você está usando ${memberCount} de ${
+              org.maxUsers
+            } usuários (${Math.round(
+              (memberCount / org.maxUsers) * 100
+            )}%). Considere fazer upgrade do seu plano.`,
+            metadata: {
+              type: "users",
+              currentCount: memberCount,
+              maxCount: org.maxUsers,
+              percentage: Math.round((memberCount / org.maxUsers) * 100),
+            },
+          },
         });
       }
 
