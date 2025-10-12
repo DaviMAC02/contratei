@@ -1,0 +1,472 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// AUTH & USERS
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  memberships   OrgMember[]
+  contracts     Contract[] // Contracts owned by this user
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  invitesSent   Invitation[]   @relation("InviterUser")
+
+  @@index([email])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtoken")
+}
+
+// ============================================
+// ORGANIZATIONS & MEMBERSHIPS
+// ============================================
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MANAGER
+  VIEWER
+}
+
+enum OrgPlan {
+  FREE
+  STARTER
+  GROWTH
+  PRO
+  STUDIO
+}
+
+model Org {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  country   String // ISO country code (e.g., "BR", "US")
+  timezone  String   @default("UTC")
+  locale    String   @default("en-US") // "pt-BR" or "en-US"
+  currency  String   @default("USD") // "BRL" or "USD"
+  plan      OrgPlan  @default(FREE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Plan limits
+  maxContracts Int @default(3)
+  maxUsers     Int @default(1)
+
+  // Billing
+  stripeCustomerId       String?       @unique
+  stripeSubscriptionId   String?       @unique
+  stripePriceId          String?
+  stripeCurrentPeriodEnd DateTime?
+  trialEndsAt            DateTime?
+  subscription           Subscription?
+
+  members       OrgMember[]
+  contracts     Contract[]
+  invitations   Invitation[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  alertSettings AlertSetting[]
+
+  @@index([slug])
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+}
+
+model OrgMember {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      OrgRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([orgId])
+  @@index([userId])
+}
+
+model Invitation {
+  id         String    @id @default(cuid())
+  orgId      String
+  email      String
+  role       OrgRole
+  token      String    @unique
+  inviterId  String
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  acceptedAt DateTime?
+
+  org     Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  inviter User @relation("InviterUser", fields: [inviterId], references: [id])
+
+  @@unique([orgId, email])
+  @@index([orgId])
+  @@index([token])
+  @@index([email])
+}
+
+// ============================================
+// SUBSCRIPTIONS
+// ============================================
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  PAST_DUE
+  TRIALING
+  UNPAID
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  orgId                  String             @unique
+  status                 SubscriptionStatus
+  stripeSubscriptionId   String             @unique
+  stripePriceId          String
+  stripeCustomerId       String
+  stripeCurrentPeriodEnd DateTime
+  cancelAtPeriodEnd      Boolean            @default(false)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  org Org @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([stripeSubscriptionId])
+  @@index([stripeCustomerId])
+}
+
+// ============================================
+// CONTRACTS
+// ============================================
+
+enum ContractStatus {
+  ACTIVE
+  DUE_SOON
+  EXPIRED
+  IN_RENEWAL
+  CANCELED
+}
+
+enum Periodicity {
+  MONTHLY
+  YEARLY
+  CUSTOM_DAYS
+}
+
+enum AdjustmentType {
+  NONE
+  FIXED_PERCENT
+  INDEX_IPCA
+}
+
+model Contract {
+  id          String         @id @default(cuid())
+  orgId       String
+  title       String
+  description String?        @db.Text
+  status      ContractStatus @default(ACTIVE)
+
+  // Supplier info
+  supplierName    String
+  supplierContact String?
+
+  // Ownership & categorization
+  ownerUserId String
+  tags        String[] @default([])
+  costCenter  String?
+  notes       String?  @db.Text
+
+  // Dates & renewal
+  startDate       DateTime
+  endDate         DateTime?
+  nextRenewalDate DateTime?
+  periodicity     Periodicity
+  customDays      Int? // for CUSTOM_DAYS periodicity
+  autoRenew       Boolean     @default(true)
+
+  // Financial
+  valueAmount     Decimal        @db.Decimal(15, 2)
+  currency        String         @default("USD")
+  adjustmentType  AdjustmentType @default(NONE)
+  adjustmentValue Decimal?       @db.Decimal(5, 2) // percentage
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org            Org                  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  owner          User                 @relation(fields: [ownerUserId], references: [id])
+  files          ContractFile[]
+  adjustments    ContractAdjustment[]
+  renewalHistory RenewalHistory[]
+
+  @@index([orgId])
+  @@index([ownerUserId])
+  @@index([status])
+  @@index([nextRenewalDate])
+  @@index([supplierName])
+}
+
+// ============================================
+// CONTRACT FILES
+// ============================================
+
+enum FileType {
+  MAIN
+  ATTACHMENT
+}
+
+model ContractFile {
+  id          String   @id @default(cuid())
+  contractId  String
+  orgId       String
+  fileName    String
+  fileType    FileType @default(ATTACHMENT)
+  storagePath String // Supabase storage path
+  checksum    String
+  sizeBytes   Int
+  uploadedBy  String
+  uploadedAt  DateTime @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@index([orgId])
+}
+
+// ============================================
+// ADJUSTMENTS & RENEWALS
+// ============================================
+
+model ContractAdjustment {
+  id             String   @id @default(cuid())
+  contractId     String
+  orgId          String
+  adjustmentDate DateTime
+  oldValue       Decimal  @db.Decimal(15, 2)
+  newValue       Decimal  @db.Decimal(15, 2)
+  percentage     Decimal  @db.Decimal(5, 2)
+  reason         String?  @db.Text
+  appliedBy      String
+  appliedAt      DateTime @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@index([orgId])
+  @@index([adjustmentDate])
+}
+
+model RenewalHistory {
+  id              String   @id @default(cuid())
+  contractId      String
+  orgId           String
+  renewalDate     DateTime
+  previousEndDate DateTime
+  newEndDate      DateTime
+  renewedBy       String
+  renewedAt       DateTime @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@index([orgId])
+}
+
+// ============================================
+// ALERTS & NOTIFICATIONS
+// ============================================
+
+enum AlertEventType {
+  CONTRACT_DUE_SOON
+  CONTRACT_EXPIRED
+  ADJUSTMENT_DUE
+  RENEWAL_REMINDER
+}
+
+enum NotificationChannel {
+  EMAIL
+  IN_APP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+}
+
+model AlertSetting {
+  id              String                @id @default(cuid())
+  orgId           String
+  eventType       AlertEventType
+  enabled         Boolean               @default(true)
+  daysBeforeArray Int[]                 @default([90, 60, 30]) // Array of days before event
+  channels        NotificationChannel[] @default([EMAIL])
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  org Org @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, eventType])
+  @@index([orgId])
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  orgId     String
+  userId    String
+  eventType AlertEventType
+  channel   NotificationChannel
+  status    NotificationStatus  @default(PENDING)
+  title     String
+  message   String              @db.Text
+  metadata  Json? // Additional context (contractId, etc.)
+  sentAt    DateTime?
+  readAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================
+// CRON JOB TRACKING
+// ============================================
+
+model CronJob {
+  id            String   @id @default(cuid())
+  jobName       String
+  executedAt    DateTime @default(now())
+  status        String // "success" | "failed"
+  duration      Int // milliseconds
+  processedOrgs Int      @default(0)
+  errors        Json? // Array of error details
+  metadata      Json? // Additional job context
+
+  @@index([jobName])
+  @@index([executedAt])
+  @@index([status])
+}
+
+// Idempotency tracking for alerts
+model AlertLog {
+  id         String         @id @default(cuid())
+  orgId      String
+  date       DateTime       @db.Date
+  eventType  AlertEventType
+  contractId String?
+  userId     String?
+  processed  Boolean        @default(false)
+  createdAt  DateTime       @default(now())
+
+  @@unique([orgId, date, eventType, contractId])
+  @@index([orgId])
+  @@index([date])
+  @@index([processed])
+}
+
+// ============================================
+// AUDIT LOGS
+// ============================================
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+  DOWNLOAD
+  RENEW
+  ADJUST
+  INVITE
+  ACCEPT_INVITE
+  CHANGE_ROLE
+  EXPORT
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  orgId      String
+  userId     String
+  action     AuditAction
+  entityType String // "Contract", "User", "File", etc.
+  entityId   String
+  metadata   Json? // Before/after diffs, additional context
+  ip         String?
+  userAgent  String?     @db.Text
+  createdAt  DateTime    @default(now())
+
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

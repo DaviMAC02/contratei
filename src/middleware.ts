@@ -1,0 +1,96 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
+
+// Define public routes that don't require authentication
+const publicRoutes = [
+  "/auth/signin",
+  "/auth/signup",
+  "/auth/verify-request",
+  "/auth/error",
+];
+
+// Define auth routes (redirect to select-org if already logged in)
+const authRoutes = ["/auth/signin", "/auth/signup"];
+
+export default auth((req) => {
+  const { pathname } = req.nextUrl;
+
+  // Skip middleware for static files, API routes, and assets
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/static") ||
+    pathname.includes(".")
+  ) {
+    return NextResponse.next();
+  }
+
+  // Check if current route is public
+  const isPublicRoute = publicRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
+
+  // Check if current route is an auth route
+  const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
+
+  // Check if user has a valid session using NextAuth v5
+  const hasSession = !!req.auth;
+
+  // If user is not authenticated and trying to access protected route
+  if (!hasSession && !isPublicRoute) {
+    const signInUrl = new URL("/auth/signin", req.url);
+    signInUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(signInUrl);
+  }
+
+  // If user is authenticated and trying to access auth pages
+  if (hasSession && isAuthRoute) {
+    return NextResponse.redirect(new URL("/select-org", req.url));
+  }
+
+  // If user is authenticated and on root, redirect to select-org
+  if (hasSession && pathname === "/") {
+    return NextResponse.redirect(new URL("/select-org", req.url));
+  }
+
+  // If user is authenticated and trying to access dashboard without orgId, redirect to select-org
+  if (hasSession && pathname.startsWith("/dashboard")) {
+    const url = new URL(req.url);
+    const orgId = url.searchParams.get("orgId");
+
+    if (!orgId) {
+      return NextResponse.redirect(new URL("/select-org", req.url));
+    }
+  }
+
+  // If user is trying to access other protected routes without orgId, redirect to select-org
+  const protectedRoutes = ["/contracts", "/team", "/billing", "/settings"];
+  if (
+    hasSession &&
+    protectedRoutes.some((route) => pathname.startsWith(route))
+  ) {
+    const url = new URL(req.url);
+    const orgId = url.searchParams.get("orgId");
+
+    if (!orgId) {
+      return NextResponse.redirect(new URL("/select-org", req.url));
+    }
+  }
+
+  return NextResponse.next();
+});
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     * - API routes
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\..*|api).*)",
+  ],
+};
