@@ -343,7 +343,7 @@ export default function ContractDetailPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{adj.percentage}%</Badge>
+                      <Badge variant="outline">{Number(adj.percentage)}%</Badge>
                     </TableCell>
                     <TableCell>{adj.reason || "-"}</TableCell>
                   </TableRow>

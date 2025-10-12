@@ -18,7 +18,7 @@ export function I18nProvider({
   children: ReactNode;
 }) {
   const t = (key: TranslationKey, params?: Record<string, string | number>) => {
-    let translation =
+    let translation: string =
       translations[locale][key] || translations["en-US"][key] || key;
 
     if (params) {

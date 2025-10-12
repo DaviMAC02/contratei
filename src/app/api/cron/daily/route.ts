@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         status: errors.length > 0 ? "failed" : "success",
         duration,
         processedOrgs,
-        errors: errors.length > 0 ? errors : null,
+        errors: errors.length > 0 ? errors : undefined,
       },
     });
 

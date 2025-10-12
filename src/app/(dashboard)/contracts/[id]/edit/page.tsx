@@ -63,7 +63,6 @@ export default function EditContractPage() {
           ? new Date(formData.get("endDate") as string)
           : undefined,
         autoRenew: formData.get("autoRenew") === "true",
-        valueAmount: Number(formData.get("valueAmount")),
         adjustmentType: formData.get("adjustmentType") as any,
         adjustmentValue: formData.get("adjustmentValue")
           ? Number(formData.get("adjustmentValue"))
@@ -148,7 +147,7 @@ export default function EditContractPage() {
                   id="ownerUserId"
                   name="ownerUserId"
                   required
-                  defaultValue={contract.ownerId}
+                  defaultValue={contract.ownerUserId}
                 >
                   {members.map((member) => (
                     <option key={member.userId} value={member.userId}>

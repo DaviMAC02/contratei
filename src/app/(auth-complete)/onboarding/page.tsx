@@ -159,7 +159,7 @@ export default function OnboardingPage() {
               <div className="flex justify-end">
                 <Button
                   onClick={handleCreateOrg}
-                  disabled={!orgData.name || createOrgMutation.isLoading}
+                  disabled={!orgData.name || createOrgMutation.isPending}
                 >
                   Continuar
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -276,7 +276,7 @@ export default function OnboardingPage() {
                   onClick={() =>
                     handleCreateContract(createOrgMutation.data!.id)
                   }
-                  disabled={createContractMutation.isLoading}
+                  disabled={createContractMutation.isPending}
                 >
                   Continuar
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -443,10 +443,10 @@ export default function OnboardingPage() {
                 </Button>
                 <Button
                   onClick={() => handleFinish(createOrgMutation.data!.id)}
-                  disabled={inviteUserMutation.isLoading}
+                  disabled={inviteUserMutation.isPending}
                 >
                   <Check className="mr-2 h-4 w-4" />
-                  {inviteUserMutation.isLoading
+                  {inviteUserMutation.isPending
                     ? "Finalizando..."
                     : "Finalizar"}
                 </Button>
