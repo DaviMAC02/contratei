@@ -22,6 +22,9 @@ export default function BillingPage() {
   const { t, locale } = useTranslation();
   const router = useRouter();
   const { orgId, org, isLoading: orgsLoading } = useOrgSelection();
+  const [billingInterval, setBillingInterval] = useState<"month" | "year">(
+    "month"
+  );
 
   const subscriptionQuery = trpc.billing.getSubscription.useQuery(
     { orgId: orgId || "" },
@@ -54,7 +57,9 @@ export default function BillingPage() {
 
   const checkoutMutation = trpc.billing.createCheckoutSession.useMutation({
     onSuccess: (data) => {
-      window.location.href = data.url;
+      if (data.url) {
+        window.location.href = data.url;
+      }
     },
   });
 
@@ -96,27 +101,29 @@ export default function BillingPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Plano Atual</CardTitle>
-            <Button
-              variant="outline"
-              onClick={handleManageSubscription}
-              disabled={portalMutation.isLoading}
-            >
-              <CreditCard className="h-4 w-4 mr-2" />
-              Gerenciar Assinatura
-            </Button>
+            {subscription && (
+              <Button
+                variant="outline"
+                onClick={handleManageSubscription}
+                disabled={portalMutation.isPending}
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Gerenciar Assinatura
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold mb-2">
-                Plano {subscription?.planName || "Free"}
+                Plano {org?.plan || "Free"}
               </h3>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   <span>
-                    {org?.maxContracts === -1
+                    {org?.maxContracts && org.maxContracts >= 1000
                       ? "Contratos ilimitados"
                       : `${org?.maxContracts} contratos`}
                   </span>
@@ -124,7 +131,7 @@ export default function BillingPage() {
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4" />
                   <span>
-                    {org?.maxUsers === -1
+                    {org?.maxUsers && org.maxUsers >= 50
                       ? "Usuários ilimitados"
                       : `${org?.maxUsers} usuários`}
                   </span>
@@ -134,22 +141,12 @@ export default function BillingPage() {
 
             {subscription && (
               <div className="text-right">
-                <div className="text-2xl font-bold mb-2">
-                  {formatCurrency(
-                    subscription.amount / 100,
-                    org?.currency as any,
-                    org?.locale
-                  )}
-                  <span className="text-sm text-muted-foreground">
-                    /{subscription.interval === "month" ? "mês" : "ano"}
-                  </span>
-                </div>
                 <Badge
                   variant={
-                    subscription.status === "active" ? "success" : "secondary"
+                    subscription.cancelAtPeriodEnd ? "secondary" : "success"
                   }
                 >
-                  {subscription.status}
+                  {subscription.cancelAtPeriodEnd ? "Cancelando" : "Ativo"}
                 </Badge>
               </div>
             )}
@@ -160,13 +157,30 @@ export default function BillingPage() {
       {/* Available Plans */}
       <div className="mb-8">
         <h2 className="text-2xl font-bold mb-4">Planos Disponíveis</h2>
+
+        {/* Billing Interval Toggle */}
+        <div className="flex justify-center gap-2 mb-6">
+          <Button
+            variant={billingInterval === "month" ? "default" : "outline"}
+            onClick={() => setBillingInterval("month")}
+            size="sm"
+          >
+            Mensal
+          </Button>
+          <Button
+            variant={billingInterval === "year" ? "default" : "outline"}
+            onClick={() => setBillingInterval("year")}
+            size="sm"
+          >
+            Anual
+          </Button>
+        </div>
+
         <div className="grid gap-6 md:grid-cols-3">
           {plans.map((plan) => (
             <Card
-              key={plan.priceId}
-              className={
-                subscription?.priceId === plan.priceId ? "border-primary" : ""
-              }
+              key={plan.id}
+              className={plan.isCurrentPlan ? "border-primary" : ""}
             >
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
@@ -183,13 +197,15 @@ export default function BillingPage() {
                 <div className="mb-6">
                   <div className="text-3xl font-bold mb-2">
                     {formatCurrency(
-                      plan.amount / 100,
-                      plan.currency as any,
+                      (billingInterval === "month"
+                        ? plan.price.monthly
+                        : plan.price.yearly) / 100,
+                      org?.currency as any,
                       org?.locale
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    por {plan.interval === "month" ? "mês" : "ano"}
+                    por {billingInterval === "month" ? "mês" : "ano"}
                   </p>
                 </div>
 
@@ -197,7 +213,7 @@ export default function BillingPage() {
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                     <span className="text-sm">
-                      {plan.maxContracts === -1
+                      {plan.maxContracts >= 1000
                         ? "Contratos ilimitados"
                         : `Até ${plan.maxContracts} contratos`}
                     </span>
@@ -205,7 +221,7 @@ export default function BillingPage() {
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                     <span className="text-sm">
-                      {plan.maxUsers === -1
+                      {plan.maxUsers >= 50
                         ? "Usuários ilimitados"
                         : `Até ${plan.maxUsers} usuários`}
                     </span>
@@ -218,7 +234,7 @@ export default function BillingPage() {
                     <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                     <span className="text-sm">Renovação automática</span>
                   </li>
-                  {plan.name !== "Starter" && (
+                  {plan.name !== "Free" && plan.name !== "Starter" && (
                     <>
                       <li className="flex items-start gap-2">
                         <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
@@ -230,7 +246,7 @@ export default function BillingPage() {
                       </li>
                     </>
                   )}
-                  {plan.name === "Enterprise" && (
+                  {(plan.name === "Pro" || plan.name === "Studio") && (
                     <>
                       <li className="flex items-start gap-2">
                         <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
@@ -246,20 +262,11 @@ export default function BillingPage() {
 
                 <Button
                   className="w-full"
-                  variant={
-                    subscription?.priceId === plan.priceId
-                      ? "outline"
-                      : "default"
-                  }
-                  disabled={
-                    subscription?.priceId === plan.priceId ||
-                    checkoutMutation.isLoading
-                  }
-                  onClick={() => handleUpgrade(plan.priceId)}
+                  variant={plan.isCurrentPlan ? "outline" : "default"}
+                  disabled={plan.isCurrentPlan || checkoutMutation.isPending}
+                  onClick={() => handleUpgrade(plan.id, billingInterval)}
                 >
-                  {subscription?.priceId === plan.priceId
-                    ? "Plano Atual"
-                    : "Selecionar Plano"}
+                  {plan.isCurrentPlan ? "Plano Atual" : "Selecionar Plano"}
                 </Button>
               </CardContent>
             </Card>
