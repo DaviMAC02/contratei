@@ -131,6 +131,22 @@ export const orgRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Check if user already owns an organization
+      const existingOwnership = await ctx.prisma.orgMember.findFirst({
+        where: {
+          userId: ctx.session!.user.id,
+          role: "OWNER",
+        },
+      });
+
+      if (existingOwnership) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Você já possui uma organização. Cada usuário pode criar apenas uma organização própria para faturamento.",
+        });
+      }
+
       const config = getCountryConfig(input.country);
       const slug = `${input.name
         .toLowerCase()

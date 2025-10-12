@@ -2,11 +2,7 @@
 
 import { signIn } from "next-auth/react";
 import { useState, Suspense } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Loader2, Sparkles, Lock, ArrowRight } from "lucide-react";
+import { Mail, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -14,13 +10,12 @@ import {
   Box,
   Typography,
   TextField,
-  Avatar,
+  Button,
   Divider,
   Alert,
   CircularProgress,
   Paper,
 } from "@mui/material";
-import { styled } from "@mui/material/styles";
 
 function SignInForm() {
   const [email, setEmail] = useState("");
@@ -58,59 +53,84 @@ function SignInForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      {/* Content */}
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "#f9fafb",
+        p: 2,
+      }}
+    >
       <Paper
         elevation={0}
-        className="w-full max-w-md"
         sx={{
-          borderRadius: 2,
+          width: "100%",
+          maxWidth: 450,
+          borderRadius: 3,
           border: "1px solid #e5e7eb",
           boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
         }}
       >
-        <Box className="p-8">
-          {/* Logo and Title */}
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-6">
+        <Box sx={{ p: 4 }}>
+          {/* Logo */}
+          <Box sx={{ textAlign: "center", mb: 4 }}>
+            <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
               <Image
                 src="/logo.svg"
-                alt="Contratei Logo"
-                width={180}
-                height={60}
+                alt="Contratei"
+                width={120}
+                height={40}
                 priority
               />
-            </div>
+            </Box>
             <Typography
               variant="h5"
-              className="font-semibold text-gray-900 mb-2"
+              sx={{ fontWeight: 600, color: "#111827", mb: 1 }}
             >
               Entrar no Contratei
             </Typography>
-            <Typography variant="body2" className="text-gray-500">
+            <Typography variant="body2" sx={{ color: "#6b7280" }}>
               Acesse sua conta para gerenciar contratos
             </Typography>
-          </div>
+          </Box>
 
           {/* Timeout Alert */}
           {timeout === "true" && (
-            <Alert
-              severity="warning"
-              className="mb-6 rounded-xl animate-slide-in-left"
-            >
-              ⏱️ Sua sessão expirou por inatividade. Por favor, faça login
+            <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
+              Sua sessão expirou por inatividade. Por favor, faça login
               novamente.
             </Alert>
           )}
 
           {/* Google Sign In */}
           <Button
-            variant="outline"
-            className="w-full mb-6 h-12 rounded-xl border-2 hover:border-primary hover:bg-primary/5 transition-all hover-lift"
+            variant="outlined"
+            fullWidth
             onClick={handleGoogleSignIn}
             disabled={isLoading}
+            sx={{
+              height: 48,
+              borderRadius: 2,
+              borderWidth: 1.5,
+              borderColor: "#e5e7eb",
+              color: "#374151",
+              textTransform: "none",
+              fontSize: "0.9375rem",
+              fontWeight: 500,
+              mb: 3,
+              "&:hover": {
+                borderColor: "#1d2b48",
+                bgcolor: "#f9fafb",
+                borderWidth: 1.5,
+              },
+            }}
           >
-            <svg className="mr-3 h-5 w-5" viewBox="0 0 24 24">
+            <svg
+              style={{ marginRight: 12, height: 20, width: 20 }}
+              viewBox="0 0 24 24"
+            >
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                 fill="#4285F4"
@@ -128,26 +148,21 @@ function SignInForm() {
                 fill="#EA4335"
               />
             </svg>
-            <span className="font-medium">Continuar com Google</span>
+            Continuar com Google
           </Button>
 
-          <Divider className="my-6">
-            <Typography variant="caption" className="text-gray-500 px-4">
-              Ou continue com email
-            </Typography>
-          </Divider>
-          <Divider className="my-6">
-            <Typography variant="caption" className="text-gray-500 px-4">
+          <Divider sx={{ my: 3 }}>
+            <Typography variant="body2" sx={{ color: "#9ca3af", px: 2 }}>
               Ou continue com email
             </Typography>
           </Divider>
 
           {/* Email Sign In */}
-          <form onSubmit={handleEmailSignIn} className="space-y-5">
-            <Box>
+          <form onSubmit={handleEmailSignIn}>
+            <Box sx={{ mb: 3 }}>
               <Typography
                 variant="body2"
-                className="font-medium text-gray-700 mb-2"
+                sx={{ fontWeight: 500, color: "#374151", mb: 1 }}
               >
                 Endereço de Email
               </Typography>
@@ -160,68 +175,96 @@ function SignInForm() {
                 required
                 disabled={isLoading}
                 variant="outlined"
+                InputProps={{
+                  startAdornment: (
+                    <Mail
+                      style={{
+                        height: 20,
+                        width: 20,
+                        color: "#9ca3af",
+                        marginRight: 8,
+                      }}
+                    />
+                  ),
+                }}
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     borderRadius: 2,
-                    "&:hover": {
-                      "& .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "primary.main",
-                      },
+                    "& fieldset": {
+                      borderColor: "#e5e7eb",
+                    },
+                    "&:hover fieldset": {
+                      borderColor: "#1d2b48",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#1d2b48",
                     },
                   },
-                }}
-                InputProps={{
-                  startAdornment: (
-                    <Mail className="h-5 w-5 text-gray-400 mr-2" />
-                  ),
                 }}
               />
             </Box>
 
             <Button
               type="submit"
-              className="w-full h-12 rounded-xl font-medium hover-lift gradient-primary text-white"
+              variant="contained"
+              fullWidth
               disabled={isLoading}
+              endIcon={
+                isLoading ? null : (
+                  <ArrowRight style={{ height: 20, width: 20 }} />
+                )
+              }
+              sx={{
+                height: 48,
+                borderRadius: 2,
+                bgcolor: "#1d2b48",
+                textTransform: "none",
+                fontSize: "0.9375rem",
+                fontWeight: 500,
+                "&:hover": {
+                  bgcolor: "#162039",
+                },
+                "&:disabled": {
+                  bgcolor: "#9ca3af",
+                },
+              }}
             >
               {isLoading ? (
                 <>
-                  <CircularProgress
-                    size={20}
-                    className="mr-2"
-                    sx={{ color: "white" }}
-                  />
+                  <CircularProgress size={20} sx={{ color: "white", mr: 1 }} />
                   Enviando...
                 </>
               ) : (
-                <>
-                  Entrar com Email
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </>
+                "Entrar com Email"
               )}
             </Button>
           </form>
 
           <Typography
             variant="body2"
-            className="text-center text-gray-600 mt-6"
+            sx={{ textAlign: "center", color: "#6b7280", mt: 3 }}
           >
             Não tem uma conta?{" "}
             <Link
               href="/auth/signup"
-              className="text-primary font-semibold hover:underline animated-underline"
+              style={{
+                color: "#1d2b48",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
             >
               Criar conta
             </Link>
           </Typography>
         </Box>
       </Paper>
-    </div>
+    </Box>
   );
 }
 
 export default function SignInPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<CircularProgress />}>
       <SignInForm />
     </Suspense>
   );

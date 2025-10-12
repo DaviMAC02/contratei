@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,11 +18,17 @@ import {
   Check,
   ArrowRight,
   ArrowLeft,
+  Loader2,
 } from "lucide-react";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [step, setStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [needsOrgCreation, setNeedsOrgCreation] = useState(false);
+  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
+
   const [orgData, setOrgData] = useState({
     name: "",
     country: "BR" as "BR" | "US",
@@ -40,20 +47,44 @@ export default function OnboardingPage() {
   });
   const [inviteEmails, setInviteEmails] = useState([""]);
 
+  const orgsQuery = trpc.org.list.useQuery(undefined, {
+    enabled: !!session,
+  });
   const createOrgMutation = trpc.org.create.useMutation();
   const createContractMutation = trpc.contract.create.useMutation();
   const inviteUserMutation = trpc.org.inviteUser.useMutation();
 
+  useEffect(() => {
+    if (orgsQuery.data) {
+      const userOrgs = orgsQuery.data;
+      const ownedOrg = userOrgs.find((org) => org.role === "OWNER");
+
+      if (ownedOrg) {
+        // User already has an org (created during email signup)
+        setCurrentOrgId(ownedOrg.id);
+        setNeedsOrgCreation(false);
+        setStep(2); // Skip to contract creation
+      } else {
+        // User logged in with Google and needs to create org
+        setNeedsOrgCreation(true);
+        setStep(1);
+      }
+      setIsLoading(false);
+    }
+  }, [orgsQuery.data]);
+
   const handleCreateOrg = async () => {
     const org = await createOrgMutation.mutateAsync(orgData);
+    setCurrentOrgId(org.id);
     setStep(2);
-    return org.id;
   };
 
-  const handleCreateContract = async (orgId: string) => {
+  const handleCreateContract = async () => {
+    if (!currentOrgId) return;
+
     if (contractData.title && contractData.counterpartyName) {
       await createContractMutation.mutateAsync({
-        orgId,
+        orgId: currentOrgId,
         title: contractData.title,
         counterpartyName: contractData.counterpartyName,
         ownerUserId: "", // Will be set on server
@@ -66,11 +97,13 @@ export default function OnboardingPage() {
     setStep(3);
   };
 
-  const handleFinish = async (orgId: string) => {
+  const handleFinish = async () => {
+    if (!currentOrgId) return;
+
     // Send invites
     for (const email of inviteEmails.filter(Boolean)) {
       await inviteUserMutation.mutateAsync({
-        orgId,
+        orgId: currentOrgId,
         email,
         role: "VIEWER",
       });
@@ -79,7 +112,18 @@ export default function OnboardingPage() {
     router.push("/dashboard");
   };
 
-  const totalSteps = 4;
+  const totalSteps = needsOrgCreation ? 4 : 3;
+
+  if (isLoading || orgsQuery.isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
@@ -88,7 +132,7 @@ export default function OnboardingPage() {
           <div className="flex items-center justify-between mb-4">
             <CardTitle className="text-2xl">Bem-vindo!</CardTitle>
             <span className="text-sm text-muted-foreground">
-              Passo {step} de {totalSteps}
+              Passo {needsOrgCreation ? step : step - 1} de {totalSteps}
             </span>
           </div>
 
@@ -96,7 +140,11 @@ export default function OnboardingPage() {
           <div className="w-full bg-muted rounded-full h-2">
             <div
               className="bg-primary h-2 rounded-full transition-all"
-              style={{ width: `${(step / totalSteps) * 100}%` }}
+              style={{
+                width: `${
+                  ((needsOrgCreation ? step : step - 1) / totalSteps) * 100
+                }%`,
+              }}
             />
           </div>
         </CardHeader>
@@ -273,9 +321,7 @@ export default function OnboardingPage() {
                   Pular
                 </Button>
                 <Button
-                  onClick={() =>
-                    handleCreateContract(createOrgMutation.data!.id)
-                  }
+                  onClick={handleCreateContract}
                   disabled={createContractMutation.isPending}
                 >
                   Continuar
@@ -442,7 +488,7 @@ export default function OnboardingPage() {
                   Voltar
                 </Button>
                 <Button
-                  onClick={() => handleFinish(createOrgMutation.data!.id)}
+                  onClick={handleFinish}
                   disabled={inviteUserMutation.isPending}
                 >
                   <Check className="mr-2 h-4 w-4" />

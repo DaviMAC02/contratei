@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc-client";
 import { useTranslation } from "@/lib/use-translation";
@@ -25,6 +25,7 @@ import {
   InputLabel,
   FormHelperText,
   CardHeader,
+  CircularProgress,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -71,7 +72,15 @@ export default function NewContractPage() {
   const [orgId, setOrgId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
-  const [formData, setFormData] = useState<any>({});
+  const [formData, setFormData] = useState<any>({
+    contractType: "OUTBOUND",
+    periodicity: "MONTHLY",
+    autoRenew: false,
+    adjustmentType: "NONE",
+  });
+
+  // Ref para controlar se o submit foi explicitamente solicitado
+  const canSubmitRef = useRef(false);
 
   const orgsQuery = trpc.org.list.useQuery();
   const orgQuery = trpc.org.get.useQuery({ orgId }, { enabled: !!orgId });
@@ -93,15 +102,21 @@ export default function NewContractPage() {
 
   const createMutation = trpc.contract.create.useMutation({
     onSuccess: () => {
-      router.push(`/contracts?orgId=${orgId}`);
+      router.push(`/contracts`);
+    },
+    onError: (error) => {
+      console.error("Error creating contract:", error);
+      setIsSubmitting(false);
     },
   });
 
   const handleNext = () => {
+    setIsSubmitting(false); // Garante que isSubmitting está false ao mudar de step
     setActiveStep((prevActiveStep) => prevActiveStep + 1);
   };
 
   const handleBack = () => {
+    setIsSubmitting(false); // Garante que isSubmitting está false ao voltar
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
@@ -111,6 +126,25 @@ export default function NewContractPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    // Só permite submit se foi explicitamente solicitado
+    if (!canSubmitRef.current) {
+      return;
+    }
+
+    // Reset da flag
+    canSubmitRef.current = false;
+
+    // Só permite submit se estiver no último step
+    if (activeStep !== steps.length - 1) {
+      return;
+    }
+
+    // Previne múltiplos submits
+    if (isSubmitting) {
+      return;
+    }
+
     setIsSubmitting(true);
 
     const contractData = {
@@ -449,20 +483,43 @@ export default function NewContractPage() {
         );
 
       case 2:
+        // Função para formatar centavos em reais (display)
+        const formatCentsToDisplay = (
+          cents: number | string | undefined
+        ): string => {
+          if (!cents && cents !== 0) return "";
+          const numericCents =
+            typeof cents === "string" ? parseInt(cents, 10) : cents;
+          if (isNaN(numericCents)) return "";
+          const reais = numericCents / 100;
+          return reais.toFixed(2).replace(".", ",");
+        };
+
+        // Função para lidar com input e converter para centavos
+        const handleValueInput = (input: string) => {
+          // Remove tudo que não é dígito
+          const digits = input.replace(/\D/g, "");
+
+          if (digits === "") {
+            handleStepData({ valueAmount: undefined });
+            return;
+          }
+
+          // Converte para centavos (o valor digitado já é em centavos)
+          const cents = parseInt(digits, 10);
+          handleStepData({ valueAmount: cents });
+        };
+
         return (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
             <TextField
-              label="Valor"
-              type="number"
-              inputProps={{ step: 0.01, min: 0 }}
-              value={formData.valueAmount ?? ""}
-              onChange={(e) => {
-                console.log("Value changed:", e.target.value);
-                handleStepData({ valueAmount: e.target.value });
-              }}
+              label="Valor (R$)"
+              value={formatCentsToDisplay(formData.valueAmount)}
+              onChange={(e) => handleValueInput(e.target.value)}
               required
               fullWidth
-              placeholder="0.00"
+              placeholder="0,00"
+              helperText="Digite o valor em reais"
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: "8px",
@@ -589,16 +646,11 @@ export default function NewContractPage() {
       case 1:
         return formData.startDate && formData.periodicity;
       case 2:
-        const hasValue =
-          formData.valueAmount !== undefined &&
-          formData.valueAmount !== null &&
-          formData.valueAmount !== "" &&
-          String(formData.valueAmount).trim() !== "";
-        console.log("Step 2 validation:", {
-          valueAmount: formData.valueAmount,
-          hasValue,
-        });
-        return hasValue;
+        // Valida se valueAmount existe e é um número válido (incluindo 0)
+        return (
+          typeof formData.valueAmount === "number" &&
+          !isNaN(formData.valueAmount)
+        );
       case 3:
         return true;
       default:
@@ -613,7 +665,7 @@ export default function NewContractPage() {
   return (
     <Box sx={{ p: { xs: 2, md: 4 } }}>
       <Box sx={{ mb: 3 }}>
-        <Link href={`/contracts?orgId=${orgId}`} passHref legacyBehavior>
+        <Link href="/contracts" passHref legacyBehavior>
           <Button
             variant="text"
             size="small"
@@ -691,7 +743,24 @@ export default function NewContractPage() {
             </Stepper>
           </Box>
 
-          <form onSubmit={handleSubmit}>
+          <form
+            onSubmit={handleSubmit}
+            onKeyDown={(e) => {
+              // Previne submit com Enter em qualquer step que não seja o último
+              if (e.key === "Enter") {
+                e.preventDefault();
+                // Se estiver no último step e o campo não for textarea, permite submit
+                const target = e.target as HTMLElement;
+                if (
+                  activeStep === steps.length - 1 &&
+                  target.tagName !== "TEXTAREA"
+                ) {
+                  canSubmitRef.current = true;
+                  handleSubmit(e as any);
+                }
+              }
+            }}
+          >
             {/* Render current step content */}
             <Box sx={{ mb: 3 }}>{renderStepContent(activeStep)}</Box>
 
@@ -736,11 +805,7 @@ export default function NewContractPage() {
                   gap: { xs: 1.5, sm: 2 },
                 }}
               >
-                <Link
-                  href={`/contracts?orgId=${orgId}`}
-                  passHref
-                  legacyBehavior
-                >
+                <Link href="/contracts" passHref legacyBehavior>
                   <Button
                     variant="outlined"
                     sx={{
@@ -782,10 +847,24 @@ export default function NewContractPage() {
                   </Button>
                 ) : (
                   <Button
-                    type="submit"
+                    type="button"
+                    onClick={() => {
+                      canSubmitRef.current = true;
+                      // Trigger form submit programmatically
+                      const form = document.querySelector("form");
+                      if (form) {
+                        form.requestSubmit();
+                      }
+                    }}
                     disabled={isSubmitting || !isStepValid(activeStep)}
                     variant="contained"
-                    startIcon={<Check className="h-4 w-4" />}
+                    startIcon={
+                      isSubmitting ? (
+                        <CircularProgress size={16} sx={{ color: "white" }} />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )
+                    }
                     sx={{
                       width: { xs: "100%", sm: "auto" },
                       backgroundColor: "#1d2b48",

@@ -9,6 +9,7 @@ declare module "next-auth" {
       name?: string | null;
       image?: string | null;
     };
+    selectedOrgId?: string;
   }
 
   interface User {
@@ -27,5 +28,6 @@ declare module "next-auth/jwt" {
     picture?: string | null;
     iat?: number;
     lastActivity?: number;
+    selectedOrgId?: string;
   }
 }

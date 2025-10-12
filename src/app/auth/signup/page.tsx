@@ -2,67 +2,140 @@
 
 import { signIn } from "next-auth/react";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Loader2, UserPlus } from "lucide-react";
+import { Mail, UserPlus, Building2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Divider,
+  CircularProgress,
+  Paper,
+  Select,
+  MenuItem,
+  FormControl,
+  Alert,
+} from "@mui/material";
+import { trpc } from "@/lib/trpc-client";
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [orgName, setOrgName] = useState("");
+  const [country, setCountry] = useState("BR");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const signupMutation = trpc.auth.signupWithOrg.useMutation();
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setIsLoading(true);
 
     try {
-      // NextAuth will create the user automatically on first sign in
-      await signIn("email", {
+      // Create user and organization
+      const result = await signupMutation.mutateAsync({
         email,
-        callbackUrl: "/onboarding",
+        name,
+        orgName,
+        country,
       });
-    } catch (error) {
+
+      if (result.success) {
+        // Sign in with magic link
+        await signIn("email", {
+          email,
+          callbackUrl: "/dashboard",
+        });
+      }
+    } catch (error: any) {
       console.error("Sign up error:", error);
+      setError(error.message || "Erro ao criar conta. Tente novamente.");
       setIsLoading(false);
     }
   };
 
   const handleGoogleSignUp = async () => {
     setIsLoading(true);
+    // For Google signup, we'll need to collect org data after auth
+    // Redirect to onboarding to collect org info
     await signIn("google", { callbackUrl: "/onboarding" });
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-6">
-            <Image
-              src="/logo.svg"
-              alt="Contratei Logo"
-              width={180}
-              height={60}
-              priority
-            />
-          </div>
-          <CardTitle className="text-2xl">Criar Conta</CardTitle>
-          <p className="text-sm text-muted-foreground mt-2">
-            Comece a gerenciar seus contratos hoje
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-6">
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "#f9fafb",
+        p: 2,
+      }}
+    >
+      <Paper
+        elevation={0}
+        sx={{
+          width: "100%",
+          maxWidth: 450,
+          borderRadius: 3,
+          border: "1px solid #e5e7eb",
+          boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+        }}
+      >
+        <Box sx={{ p: 4 }}>
+          {/* Logo */}
+          <Box sx={{ textAlign: "center", mb: 4 }}>
+            <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+              <Image
+                src="/logo.svg"
+                alt="Contratei"
+                width={120}
+                height={40}
+                priority
+              />
+            </Box>
+            <Typography
+              variant="h5"
+              sx={{ fontWeight: 600, color: "#111827", mb: 1 }}
+            >
+              Criar Conta
+            </Typography>
+            <Typography variant="body2" sx={{ color: "#6b7280" }}>
+              Comece a gerenciar seus contratos hoje
+            </Typography>
+          </Box>
+
           {/* Google Sign Up */}
           <Button
-            variant="outline"
-            className="w-full"
+            variant="outlined"
+            fullWidth
             onClick={handleGoogleSignUp}
             disabled={isLoading}
+            sx={{
+              height: 48,
+              borderRadius: 2,
+              borderWidth: 1.5,
+              borderColor: "#e5e7eb",
+              color: "#374151",
+              textTransform: "none",
+              fontSize: "0.9375rem",
+              fontWeight: 500,
+              mb: 3,
+              "&:hover": {
+                borderColor: "#1d2b48",
+                bgcolor: "#f9fafb",
+                borderWidth: 1.5,
+              },
+            }}
           >
-            <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+            <svg
+              style={{ marginRight: 12, height: 20, width: 20 }}
+              viewBox="0 0 24 24"
+            >
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                 fill="#4285F4"
@@ -83,80 +156,298 @@ export default function SignUpPage() {
             Continuar com Google
           </Button>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Ou registre-se com
-              </span>
-            </div>
-          </div>
+          <Divider sx={{ my: 3 }}>
+            <Typography variant="body2" sx={{ color: "#9ca3af", px: 2 }}>
+              Ou registre-se com
+            </Typography>
+          </Divider>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+              {error}
+            </Alert>
+          )}
 
           {/* Email Sign Up */}
-          <form onSubmit={handleEmailSignUp} className="space-y-4">
-            <div>
-              <Label htmlFor="name">Nome</Label>
-              <Input
-                id="name"
+          <form onSubmit={handleEmailSignUp}>
+            <Typography
+              variant="subtitle2"
+              sx={{ fontWeight: 600, color: "#374151", mb: 2 }}
+            >
+              Dados Pessoais
+            </Typography>
+
+            <Box sx={{ mb: 2 }}>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 500, color: "#374151", mb: 1 }}
+              >
+                Nome Completo
+              </Typography>
+              <TextField
+                fullWidth
                 type="text"
                 placeholder="Seu nome completo"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
                 disabled={isLoading}
+                variant="outlined"
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 2,
+                    "& fieldset": {
+                      borderColor: "#e5e7eb",
+                    },
+                    "&:hover fieldset": {
+                      borderColor: "#1d2b48",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#1d2b48",
+                    },
+                  },
+                }}
               />
-            </div>
+            </Box>
 
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
+            <Box sx={{ mb: 3 }}>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 500, color: "#374151", mb: 1 }}
+              >
+                Email
+              </Typography>
+              <TextField
+                fullWidth
                 type="email"
                 placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
+                variant="outlined"
+                InputProps={{
+                  startAdornment: (
+                    <Mail
+                      style={{
+                        height: 20,
+                        width: 20,
+                        color: "#9ca3af",
+                        marginRight: 8,
+                      }}
+                    />
+                  ),
+                }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 2,
+                    "& fieldset": {
+                      borderColor: "#e5e7eb",
+                    },
+                    "&:hover fieldset": {
+                      borderColor: "#1d2b48",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#1d2b48",
+                    },
+                  },
+                }}
               />
-            </div>
+            </Box>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Criando conta...
-                </>
-              ) : (
-                <>
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Criar Conta
-                </>
-              )}
+            <Divider sx={{ my: 3 }} />
+
+            <Typography
+              variant="subtitle2"
+              sx={{ fontWeight: 600, color: "#374151", mb: 2 }}
+            >
+              Dados da Organização
+            </Typography>
+
+            <Box sx={{ mb: 2 }}>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 500, color: "#374151", mb: 1 }}
+              >
+                Nome da Organização
+              </Typography>
+              <TextField
+                fullWidth
+                type="text"
+                placeholder="Nome da sua empresa"
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                required
+                disabled={isLoading}
+                variant="outlined"
+                InputProps={{
+                  startAdornment: (
+                    <Building2
+                      style={{
+                        height: 20,
+                        width: 20,
+                        color: "#9ca3af",
+                        marginRight: 8,
+                      }}
+                    />
+                  ),
+                }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 2,
+                    "& fieldset": {
+                      borderColor: "#e5e7eb",
+                    },
+                    "&:hover fieldset": {
+                      borderColor: "#1d2b48",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#1d2b48",
+                    },
+                  },
+                }}
+              />
+              <Typography
+                variant="caption"
+                sx={{ color: "#6b7280", mt: 0.5, display: "block" }}
+              >
+                Esta será sua organização principal e única para faturamento.
+              </Typography>
+            </Box>
+
+            <Box sx={{ mb: 3 }}>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 500, color: "#374151", mb: 1 }}
+              >
+                País
+              </Typography>
+              <FormControl fullWidth>
+                <Select
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  sx={{
+                    borderRadius: 2,
+                    "& .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#e5e7eb",
+                    },
+                    "&:hover .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#1d2b48",
+                    },
+                    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#1d2b48",
+                    },
+                  }}
+                  MenuProps={{
+                    PaperProps: {
+                      style: {
+                        maxHeight: 300,
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem value="BR">🇧🇷 Brasil</MenuItem>
+                  <MenuItem value="US">🇺🇸 Estados Unidos</MenuItem>
+                  <MenuItem value="PT">🇵🇹 Portugal</MenuItem>
+                  <MenuItem value="ES">🇪🇸 Espanha</MenuItem>
+                  <MenuItem value="MX">🇲🇽 México</MenuItem>
+                  <MenuItem value="AR">🇦🇷 Argentina</MenuItem>
+                  <MenuItem value="CL">🇨🇱 Chile</MenuItem>
+                  <MenuItem value="CO">🇨🇴 Colômbia</MenuItem>
+                </Select>
+              </FormControl>
+              <Typography
+                variant="caption"
+                sx={{ color: "#6b7280", mt: 0.5, display: "block" }}
+              >
+                Define moeda, fuso horário e formato de dados da sua
+                organização.
+              </Typography>
+            </Box>
+
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              disabled={isLoading}
+              startIcon={
+                isLoading ? (
+                  <CircularProgress size={20} sx={{ color: "white" }} />
+                ) : (
+                  <UserPlus style={{ height: 20, width: 20 }} />
+                )
+              }
+              sx={{
+                height: 48,
+                borderRadius: 2,
+                bgcolor: "#1d2b48",
+                textTransform: "none",
+                fontSize: "0.9375rem",
+                fontWeight: 500,
+                "&:hover": {
+                  bgcolor: "#162039",
+                },
+                "&:disabled": {
+                  bgcolor: "#9ca3af",
+                },
+              }}
+            >
+              {isLoading ? "Criando conta..." : "Criar Conta"}
             </Button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground">
+          <Typography
+            variant="body2"
+            sx={{
+              textAlign: "center",
+              color: "#6b7280",
+              mt: 3,
+              fontSize: "0.8125rem",
+            }}
+          >
             Ao criar uma conta, você concorda com nossos{" "}
-            <Link href="/terms" className="text-primary hover:underline">
+            <Link
+              href="/terms"
+              style={{
+                color: "#1d2b48",
+                textDecoration: "none",
+              }}
+            >
               Termos de Serviço
             </Link>{" "}
             e{" "}
-            <Link href="/privacy" className="text-primary hover:underline">
+            <Link
+              href="/privacy"
+              style={{
+                color: "#1d2b48",
+                textDecoration: "none",
+              }}
+            >
               Política de Privacidade
             </Link>
             .
-          </p>
+          </Typography>
 
-          <p className="text-center text-sm text-muted-foreground">
+          <Typography
+            variant="body2"
+            sx={{ textAlign: "center", color: "#6b7280", mt: 2 }}
+          >
             Já tem uma conta?{" "}
-            <Link href="/auth/signin" className="text-primary hover:underline">
+            <Link
+              href="/auth/signin"
+              style={{
+                color: "#1d2b48",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
               Entrar
             </Link>
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+          </Typography>
+        </Box>
+      </Paper>
+    </Box>
   );
 }

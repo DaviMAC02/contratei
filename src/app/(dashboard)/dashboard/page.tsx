@@ -290,7 +290,7 @@ function DashboardContent({ orgId, org }: { orgId: string; org: any }) {
               </Typography>
             </div>
             <Link
-              href={`/contracts/new?orgId=${orgId}`}
+              href={`/contracts/new`}
               className="w-full sm:w-auto"
             >
               <Button
@@ -357,7 +357,7 @@ function DashboardContent({ orgId, org }: { orgId: string; org: any }) {
               <Typography variant="body2" className="text-gray-500 mb-6">
                 Comece criando seu primeiro contrato
               </Typography>
-              <Link href={`/contracts/new?orgId=${orgId}`}>
+              <Link href={`/contracts/new`}>
                 <Button
                   variant="contained"
                   sx={{
@@ -458,7 +458,7 @@ function DashboardContent({ orgId, org }: { orgId: string; org: any }) {
                 </Box>
               ))}
               <div className="text-center pt-4 border-t border-gray-200">
-                <Link href={`/contracts?orgId=${orgId}`}>
+                <Link href={`/contracts`}>
                   <Button
                     variant="text"
                     sx={{

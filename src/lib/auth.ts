@@ -99,9 +99,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               include: { org: true },
             });
 
-            // If user has exactly one org, redirect directly to dashboard with that orgId
+            // If user has exactly one org, redirect directly to dashboard
+            // The orgId will be set in the session by the dashboard page
             if (orgs.length === 1) {
-              return `${baseUrl}/dashboard?orgId=${orgs[0].orgId}`;
+              return `${baseUrl}/dashboard`;
             }
 
             // If user has multiple orgs or no orgs, go to select-org
@@ -120,15 +121,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.name = token.name;
         session.user.email = token.email!;
         session.user.image = token.picture;
+        session.selectedOrgId = token.selectedOrgId;
       }
       return session;
     },
-    async jwt({ token, user, account, trigger }) {
+    async jwt({ token, user, account, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
         token.picture = user.image;
+      }
+
+      // Handle session update trigger (when user changes org)
+      if (trigger === "update" && session?.selectedOrgId) {
+        token.selectedOrgId = session.selectedOrgId;
       }
 
       // Add issued at time for tracking token age

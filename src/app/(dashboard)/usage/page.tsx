@@ -386,7 +386,7 @@ function UsageContent({ orgId, org }: { orgId: string; org: any }) {
                   {
                     " Considere fazer upgrade para continuar adicionando recursos. "
                   }
-                  <Link href={`/billing?orgId=${orgId}`}>
+                  <Link href={`/billing`}>
                     <span className="font-semibold underline hover:no-underline">
                       Ver planos disponíveis →
                     </span>
@@ -481,7 +481,7 @@ function UsageContent({ orgId, org }: { orgId: string; org: any }) {
             </Typography>
 
             {contractsAtLimit ? (
-              <Link href={`/billing?orgId=${orgId}`}>
+              <Link href={`/billing`}>
                 <Button
                   fullWidth
                   variant="contained"
@@ -499,7 +499,7 @@ function UsageContent({ orgId, org }: { orgId: string; org: any }) {
                 </Button>
               </Link>
             ) : (
-              <Link href={`/contracts/new?orgId=${orgId}`}>
+              <Link href={`/contracts/new`}>
                 <Button
                   fullWidth
                   variant="outlined"
@@ -603,7 +603,7 @@ function UsageContent({ orgId, org }: { orgId: string; org: any }) {
             </Typography>
 
             {usersAtLimit ? (
-              <Link href={`/billing?orgId=${orgId}`}>
+              <Link href={`/billing`}>
                 <Button
                   fullWidth
                   variant="contained"
@@ -621,7 +621,7 @@ function UsageContent({ orgId, org }: { orgId: string; org: any }) {
                 </Button>
               </Link>
             ) : (
-              <Link href={`/team?orgId=${orgId}`}>
+              <Link href={`/team`}>
                 <Button
                   fullWidth
                   variant="outlined"
@@ -915,7 +915,7 @@ function UsageContent({ orgId, org }: { orgId: string; org: any }) {
           </Box>
 
           {/* Manage Subscription Button */}
-          <Link href={`/billing?orgId=${orgId}`}>
+          <Link href={`/billing`}>
             <Button
               fullWidth
               variant="outlined"
@@ -958,7 +958,7 @@ function UsageContent({ orgId, org }: { orgId: string; org: any }) {
                     Faça upgrade para ter acesso a alertas, renovações,
                     reajustes automáticos e muito mais.
                   </Typography>
-                  <Link href={`/billing?orgId=${orgId}`}>
+                  <Link href={`/billing`}>
                     <Button
                       size="small"
                       variant="contained"

@@ -112,43 +112,54 @@ export function Sidebar({
     setAnchorEl(null);
   };
 
-  const handleOrgSwitch = (newOrgId: string) => {
-    localStorage.setItem("selectedOrgId", newOrgId);
-    handleOrgMenuClose();
-    // Keep the current pathname but update orgId
-    const currentPath = pathname || "/dashboard";
-    router.push(`${currentPath}?orgId=${newOrgId}`);
+  const handleOrgSwitch = async (newOrgId: string) => {
+    try {
+      // Update session with new org
+      const response = await fetch("/api/session/update-org", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId: newOrgId }),
+      });
+
+      if (response.ok) {
+        handleOrgMenuClose();
+        // Reload the page to get fresh data for the new org
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error("Error switching org:", error);
+    }
   };
 
   const navigation = [
     {
       name: t("nav.dashboard"),
-      href: `/dashboard?orgId=${orgId}`,
+      href: `/dashboard`,
       icon: LayoutDashboard,
     },
     {
       name: t("nav.contracts"),
-      href: `/contracts?orgId=${orgId}`,
+      href: `/contracts`,
       icon: FileText,
     },
     {
       name: "Uso do Plano",
-      href: `/usage?orgId=${orgId}`,
+      href: `/usage`,
       icon: BarChart3,
     },
     {
       name: t("nav.team"),
-      href: `/team?orgId=${orgId}`,
+      href: `/team`,
       icon: Users,
     },
     {
       name: t("nav.billing"),
-      href: `/billing?orgId=${orgId}`,
+      href: `/billing`,
       icon: CreditCard,
     },
     {
       name: t("nav.settings"),
-      href: `/settings?orgId=${orgId}`,
+      href: `/settings`,
       icon: Settings,
     },
   ];

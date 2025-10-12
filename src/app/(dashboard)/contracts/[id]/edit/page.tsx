@@ -46,7 +46,7 @@ export default function EditContractPage() {
 
   const updateMutation = trpc.contract.update.useMutation({
     onSuccess: () => {
-      router.push(`/contracts/${contractId}?orgId=${orgId}`);
+      router.push(`/contracts/${contractId}`);
     },
   });
 
@@ -103,7 +103,7 @@ export default function EditContractPage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <Link href={`/contracts/${contractId}?orgId=${orgId}`}>
+        <Link href={`/contracts/${contractId}`}>
           <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar

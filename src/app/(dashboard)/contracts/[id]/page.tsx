@@ -72,7 +72,7 @@ export default function ContractDetailPage() {
 
   const deleteMutation = trpc.contract.delete.useMutation({
     onSuccess: () => {
-      router.push(`/contracts?orgId=${orgId}`);
+      router.push(`/contracts`);
     },
   });
 
@@ -108,7 +108,7 @@ export default function ContractDetailPage() {
     <div className="p-8">
       {/* Header */}
       <div className="mb-6">
-        <Link href={`/contracts?orgId=${orgId}`}>
+        <Link href={`/contracts`}>
           <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
@@ -154,7 +154,7 @@ export default function ContractDetailPage() {
             <RefreshCw className="h-4 w-4 mr-2" />
             {t("contracts.renew")}
           </Button>
-          <Link href={`/contracts/${contractId}/edit?orgId=${orgId}`}>
+          <Link href={`/contracts/${contractId}/edit`}>
             <Button variant="outline">
               <Edit className="h-4 w-4 mr-2" />
               {t("contracts.edit")}

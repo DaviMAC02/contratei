@@ -188,7 +188,7 @@ function ContractsContent({ orgId, org }: { orgId: string; org: any }) {
             </Typography>
           </div>
           <Link
-            href={`/contracts/new?orgId=${orgId}`}
+            href={`/contracts/new`}
             className="w-full sm:w-auto"
           >
             <Button
@@ -503,7 +503,7 @@ function ContractsContent({ orgId, org }: { orgId: string; org: any }) {
                         <p className="text-gray-500 mb-4">
                           Nenhum contrato encontrado.
                         </p>
-                        <Link href={`/contracts/new?orgId=${orgId}`}>
+                        <Link href={`/contracts/new`}>
                           <Button
                             variant="outlined"
                             sx={{
@@ -593,7 +593,7 @@ function ContractsContent({ orgId, org }: { orgId: string; org: any }) {
                         </TableCell>
                         <TableCell align="right">
                           <Link
-                            href={`/contracts/${contract.id}?orgId=${orgId}`}
+                            href={`/contracts/${contract.id}`}
                           >
                             <Button
                               variant="text"
@@ -644,7 +644,7 @@ function ContractsContent({ orgId, org }: { orgId: string; org: any }) {
                   <Typography variant="body2" className="text-gray-500 mb-4">
                     Nenhum contrato encontrado.
                   </Typography>
-                  <Link href={`/contracts/new?orgId=${orgId}`}>
+                  <Link href={`/contracts/new`}>
                     <Button
                       variant="outlined"
                       fullWidth
@@ -760,7 +760,7 @@ function ContractsContent({ orgId, org }: { orgId: string; org: any }) {
                     )}
 
                     <Link
-                      href={`/contracts/${contract.id}?orgId=${orgId}`}
+                      href={`/contracts/${contract.id}`}
                       className="block"
                     >
                       <Button
