@@ -100,7 +100,7 @@ export default function SelectOrgPage() {
         console.log("Session API call successful");
         await updateSession({ selectedOrgId: orgId });
         console.log("Session updated, redirecting to dashboard");
-        
+
         // Direct redirect
         window.location.href = "/dashboard";
       } else {
@@ -113,7 +113,8 @@ export default function SelectOrgPage() {
       setIsRedirecting(false);
       setSelectedOrgId("");
     }
-  };  const handleSubmit = (e: React.FormEvent) => {
+  };
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedOrgId) {
       handleSelectOrg(selectedOrgId);
