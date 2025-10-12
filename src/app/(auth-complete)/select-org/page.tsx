@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { trpc } from "@/lib/trpc-client";
 import { ArrowLeft, FileText, Bell, TrendingUp } from "lucide-react";
 import Image from "next/image";
@@ -45,6 +45,12 @@ export default function SelectOrgPage() {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [currentBenefitIndex, setCurrentBenefitIndex] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  // Ensure hydration consistency
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Auto-rotate carousel
   useEffect(() => {
@@ -101,8 +107,10 @@ export default function SelectOrgPage() {
         await updateSession({ selectedOrgId: orgId });
         console.log("Session updated, redirecting to dashboard");
 
-        // Direct redirect
-        window.location.href = "/dashboard";
+        // Direct redirect - only if mounted
+        if (mounted && typeof window !== "undefined") {
+          window.location.href = "/dashboard";
+        }
       } else {
         console.error("Failed to update org in session");
         setIsRedirecting(false);
@@ -121,8 +129,8 @@ export default function SelectOrgPage() {
     }
   };
 
-  // Show loading while fetching orgs or redirecting
-  if (orgsQuery.isLoading || isRedirecting) {
+  // Show loading while fetching orgs or redirecting or not mounted
+  if (!mounted || orgsQuery.isLoading || isRedirecting) {
     return (
       <Box
         sx={{
@@ -342,10 +350,21 @@ export default function SelectOrgPage() {
             <Box
               component="button"
               type="button"
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.preventDefault();
-                if (!isRedirecting) {
-                  window.location.href = "/auth/signin";
+                if (!isRedirecting && mounted) {
+                  try {
+                    await signOut({
+                      callbackUrl: "/auth/signin",
+                      redirect: true,
+                    });
+                  } catch (error) {
+                    console.error("Error signing out:", error);
+                    // Fallback to direct navigation - only if mounted
+                    if (typeof window !== "undefined") {
+                      window.location.href = "/auth/signin";
+                    }
+                  }
                 }
               }}
               disabled={isRedirecting}

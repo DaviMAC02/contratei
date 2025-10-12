@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "@/lib/use-translation";
 import { trpc } from "@/lib/trpc-client";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Drawer,
   List,
@@ -84,7 +85,7 @@ const StyledListItemButton = styled(ListItemButton)(({ theme }) => ({
 }));
 
 export function Sidebar({
-  orgId,
+  orgId: propOrgId,
   orgName,
   isOpen = false,
   onClose,
@@ -92,10 +93,18 @@ export function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const { t } = useTranslation();
   const orgsQuery = trpc.org.list.useQuery();
+  const queryClient = useQueryClient();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  // Use session orgId if available, fallback to prop
+  const currentOrgId = session?.selectedOrgId || propOrgId;
+
+  // Find current org data
+  const currentOrg = orgsQuery.data?.find((org) => org.id === currentOrgId);
+  const currentOrgName = currentOrg?.name || orgName;
 
   // Close sidebar on navigation for mobile
   useEffect(() => {
@@ -122,9 +131,19 @@ export function Sidebar({
       });
 
       if (response.ok) {
+        // Update the NextAuth session
+        await update({ selectedOrgId: newOrgId });
+
+        // Invalidate all tRPC queries to force refetch with new org context
+        await queryClient.invalidateQueries();
+
         handleOrgMenuClose();
-        // Reload the page to get fresh data for the new org
-        window.location.reload();
+
+        // Small delay to ensure session and queries are updated before navigation
+        setTimeout(() => {
+          // Navigate to dashboard instead of reload to preserve app state
+          router.push("/dashboard");
+        }, 100);
       }
     } catch (error) {
       console.error("Error switching org:", error);
@@ -265,16 +284,16 @@ export function Sidebar({
                       <Typography
                         variant="body2"
                         sx={{
+                          fontSize: "0.9rem",
                           fontWeight: 600,
-                          color: "#111827",
-                          fontSize: "0.8125rem",
+                          color: "#1f2937",
                           lineHeight: 1.3,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {orgName}
+                        {currentOrgName}
                       </Typography>
                       <Typography
                         variant="caption"
@@ -324,7 +343,7 @@ export function Sidebar({
                           <Building className="h-4 w-4" />
                           <Typography variant="body2">{org.name}</Typography>
                         </Box>
-                        {org.id === orgId && (
+                        {org.id === currentOrgId && (
                           <Check className="h-4 w-4 text-primary" />
                         )}
                       </MenuItem>
@@ -365,7 +384,7 @@ export function Sidebar({
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {orgName}
+                      {currentOrgName}
                     </Typography>
                     <Typography
                       variant="caption"

@@ -64,26 +64,26 @@ export default auth((req) => {
     return NextResponse.redirect(signInUrl);
   }
 
-  // If user is authenticated and trying to access dashboard without orgId, redirect to select-org
+  // If user is authenticated and trying to access dashboard, check session for orgId
   if (hasSession && pathname.startsWith("/dashboard")) {
-    const url = new URL(req.url);
-    const orgId = url.searchParams.get("orgId");
+    // Check if user has selectedOrgId in session
+    const selectedOrgId = req.auth?.selectedOrgId;
 
-    if (!orgId) {
+    if (!selectedOrgId) {
       return NextResponse.redirect(new URL("/select-org", req.url));
     }
   }
 
-  // If user is trying to access other protected routes without orgId, redirect to select-org
+  // If user is trying to access other protected routes, check session for orgId
   const protectedRoutes = ["/contracts", "/team", "/billing", "/settings"];
   if (
     hasSession &&
     protectedRoutes.some((route) => pathname.startsWith(route))
   ) {
-    const url = new URL(req.url);
-    const orgId = url.searchParams.get("orgId");
+    // Check if user has selectedOrgId in session
+    const selectedOrgId = req.auth?.selectedOrgId;
 
-    if (!orgId) {
+    if (!selectedOrgId) {
       return NextResponse.redirect(new URL("/select-org", req.url));
     }
   }
