@@ -589,11 +589,15 @@ export default function NewContractPage() {
       case 1:
         return formData.startDate && formData.periodicity;
       case 2:
-        const hasValue = formData.valueAmount !== undefined && 
-                        formData.valueAmount !== null && 
-                        formData.valueAmount !== "" &&
-                        String(formData.valueAmount).trim() !== "";
-        console.log("Step 2 validation:", { valueAmount: formData.valueAmount, hasValue });
+        const hasValue =
+          formData.valueAmount !== undefined &&
+          formData.valueAmount !== null &&
+          formData.valueAmount !== "" &&
+          String(formData.valueAmount).trim() !== "";
+        console.log("Step 2 validation:", {
+          valueAmount: formData.valueAmount,
+          hasValue,
+        });
         return hasValue;
       case 3:
         return true;
