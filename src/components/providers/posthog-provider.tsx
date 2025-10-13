@@ -22,7 +22,7 @@ if (typeof window !== "undefined" && !posthog.__loaded) {
   });
 }
 
-export function PostHogPageview(): JSX.Element {
+export function PostHogPageview(): React.JSX.Element {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
