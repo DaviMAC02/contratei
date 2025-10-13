@@ -136,9 +136,18 @@ export default function OnboardingPage() {
           background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
         }}
       >
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
+          }}
+        >
           <CircularProgress size={40} sx={{ color: "#1d2b48" }} />
-          <Typography sx={{ color: "text.secondary" }}>Carregando...</Typography>
+          <Typography sx={{ color: "text.secondary" }}>
+            Carregando...
+          </Typography>
         </Box>
       </Box>
     );
@@ -157,7 +166,14 @@ export default function OnboardingPage() {
     >
       <Card sx={{ maxWidth: 800, width: "100%" }}>
         <CardContent sx={{ p: 4 }}>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mb: 3,
+            }}
+          >
             <Typography variant="h4" sx={{ fontWeight: 600 }}>
               Bem-vindo!
             </Typography>
@@ -165,7 +181,6 @@ export default function OnboardingPage() {
               Passo {needsOrgCreation ? step : step - 1} de {totalSteps}
             </Typography>
           </Box>
-
           {/* Progress Bar */}
           <LinearProgress
             variant="determinate"
@@ -184,7 +199,9 @@ export default function OnboardingPage() {
           {/* Step 1: Create Organization */}
           {step === 1 && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
+              >
                 <Box
                   sx={{
                     display: "flex",
@@ -234,7 +251,9 @@ export default function OnboardingPage() {
                     label="País / Região *"
                   >
                     <MenuItem value="BR">🇧🇷 Brasil (BRL - Português)</MenuItem>
-                    <MenuItem value="US">🇺🇸 Estados Unidos (USD - English)</MenuItem>
+                    <MenuItem value="US">
+                      🇺🇸 Estados Unidos (USD - English)
+                    </MenuItem>
                   </Select>
                   <FormHelperText>
                     Define a moeda e idioma da sua organização
@@ -254,11 +273,12 @@ export default function OnboardingPage() {
               </Box>
             </Box>
           )}
-
           {/* Step 2: Create First Contract */}
           {step === 2 && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
+              >
                 <Box
                   sx={{
                     display: "flex",
@@ -310,7 +330,13 @@ export default function OnboardingPage() {
                   }
                 />
 
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 2,
+                  }}
+                >
                   <TextField
                     fullWidth
                     label="Data de Início"
@@ -374,11 +400,12 @@ export default function OnboardingPage() {
               </Box>
             </Box>
           )}
-
           {/* Step 3: Alert Settings */}
           {step === 3 && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
+              >
                 <Box
                   sx={{
                     display: "flex",
@@ -405,16 +432,31 @@ export default function OnboardingPage() {
 
               <Card sx={{ bgcolor: "rgba(0, 0, 0, 0.02)" }}>
                 <CardContent sx={{ pt: 3 }}>
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <Box
+                    sx={{ display: "flex", flexDirection: "column", gap: 3 }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
                       <Box>
-                        <Typography sx={{ fontWeight: 500 }}>90 dias antes</Typography>
-                        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                        <Typography sx={{ fontWeight: 500 }}>
+                          90 dias antes
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{ color: "text.secondary" }}
+                        >
                           Alerta antecipado
                         </Typography>
                       </Box>
                       <Button
-                        variant={alertSettings.alert90 ? "contained" : "outlined"}
+                        variant={
+                          alertSettings.alert90 ? "contained" : "outlined"
+                        }
                         size="small"
                         onClick={() =>
                           setAlertSettings({
@@ -427,15 +469,28 @@ export default function OnboardingPage() {
                       </Button>
                     </Box>
 
-                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
                       <Box>
-                        <Typography sx={{ fontWeight: 500 }}>60 dias antes</Typography>
-                        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                        <Typography sx={{ fontWeight: 500 }}>
+                          60 dias antes
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{ color: "text.secondary" }}
+                        >
                           Planejamento médio prazo
                         </Typography>
                       </Box>
                       <Button
-                        variant={alertSettings.alert60 ? "contained" : "outlined"}
+                        variant={
+                          alertSettings.alert60 ? "contained" : "outlined"
+                        }
                         size="small"
                         onClick={() =>
                           setAlertSettings({
@@ -448,15 +503,28 @@ export default function OnboardingPage() {
                       </Button>
                     </Box>
 
-                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
                       <Box>
-                        <Typography sx={{ fontWeight: 500 }}>30 dias antes</Typography>
-                        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                        <Typography sx={{ fontWeight: 500 }}>
+                          30 dias antes
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{ color: "text.secondary" }}
+                        >
                           Alerta final
                         </Typography>
                       </Box>
                       <Button
-                        variant={alertSettings.alert30 ? "contained" : "outlined"}
+                        variant={
+                          alertSettings.alert30 ? "contained" : "outlined"
+                        }
                         size="small"
                         onClick={() =>
                           setAlertSettings({
@@ -489,10 +557,13 @@ export default function OnboardingPage() {
                 </Button>
               </Box>
             </Box>
-          )}          {/* Step 4: Invite Team */}
+          )}{" "}
+          {/* Step 4: Invite Team */}
           {step === 4 && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
+              >
                 <Box
                   sx={{
                     display: "flex",
