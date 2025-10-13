@@ -23,8 +23,8 @@ export function SessionActivityMonitor({
   const { data: session, status, update } = useSession();
   const pathname = usePathname();
   const lastActivityRef = useRef<number>(Date.now());
-  const inactivityTimerRef = useRef<NodeJS.Timeout>();
-  const sessionCheckTimerRef = useRef<NodeJS.Timeout>();
+  const inactivityTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const sessionCheckTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Update last activity timestamp
   const updateActivity = useCallback(() => {
