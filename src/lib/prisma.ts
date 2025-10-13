@@ -35,13 +35,6 @@ export const prisma =
       },
     },
     errorFormat: "pretty",
-    // Add connection pool timeout to prevent hanging
-    // @ts-ignore - connectionLimit is a valid option
-    connectionLimit: 10,
-    // @ts-ignore - pool timeout configuration
-    pool: {
-      timeout: 20,
-    },
   });
 
 if (process.env.NODE_ENV !== "production") {
