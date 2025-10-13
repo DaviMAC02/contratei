@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { Resend } from "resend";
 
+export const runtime = "nodejs";
+
 export async function POST(req: NextRequest) {
   try {
     // Verificar se o usuário está autenticado

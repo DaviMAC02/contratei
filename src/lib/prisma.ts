@@ -14,7 +14,6 @@ const getDatabaseUrl = () => {
   const url = new URL(dbUrl);
   if (url.hostname.includes("pooler.supabase.com")) {
     url.searchParams.set("pgbouncer", "true");
-    // Increase connection limit for better concurrency in development
     url.searchParams.set("connection_limit", "5");
     url.searchParams.set("statement_cache_size", "0");
   }
