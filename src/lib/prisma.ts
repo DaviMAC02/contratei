@@ -12,13 +12,21 @@ const getDatabaseUrl = () => {
     throw new Error("DATABASE_URL environment variable is not set");
   }
 
+  // For pooled connections, add necessary parameters
+  const url = new URL(dbUrl);
+  if (url.hostname.includes("pooler.supabase.com")) {
+    url.searchParams.set("pgbouncer", "true");
+    url.searchParams.set("connection_limit", "1");
+    // Add prepared statement configuration for pooling
+    url.searchParams.set("statement_cache_size", "0");
+  }
+
   // Log connection details for debugging (without exposing password)
   if (process.env.NODE_ENV === "development") {
-    const url = new URL(dbUrl);
     console.log(`Prisma connecting to: ${url.hostname}:${url.port}`);
   }
 
-  return dbUrl;
+  return url.toString();
 };
 
 export const prisma =
