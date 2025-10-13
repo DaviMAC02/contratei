@@ -27,6 +27,7 @@ import {
   TextField,
   Alert,
   CircularProgress,
+  Snackbar,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { useTranslation } from "@/lib/use-translation";
@@ -252,6 +253,7 @@ function BillingContent({ orgId }: { orgId: string }) {
   });
   const [supportSubmitted, setSupportSubmitted] = useState(false);
   const [supportLoading, setSupportLoading] = useState(false);
+  const [errorToast, setErrorToast] = useState<string | null>(null);
 
   // Carousel state and functions
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -281,6 +283,18 @@ function BillingContent({ orgId }: { orgId: string }) {
     },
   });
 
+  const supportMutation = trpc.support.sendMessage.useMutation({
+    onSuccess: () => {
+      setSupportSubmitted(true);
+      setSupportLoading(false);
+    },
+    onError: (error) => {
+      console.error("Erro ao enviar mensagem de suporte:", error);
+      setErrorToast("Erro ao enviar mensagem. Por favor, tente novamente.");
+      setSupportLoading(false);
+    },
+  });
+
   const handleUpgrade = async (plan: string, interval: string) => {
     // Track plan change
     if (org) {
@@ -301,27 +315,12 @@ function BillingContent({ orgId }: { orgId: string }) {
   const handleSupportSubmit = async () => {
     setSupportLoading(true);
     try {
-      const response = await fetch("/api/support", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          subject: supportForm.subject,
-          message: supportForm.message,
-        }),
+      await supportMutation.mutateAsync({
+        subject: supportForm.subject,
+        message: supportForm.message,
       });
-
-      if (!response.ok) {
-        throw new Error("Erro ao enviar mensagem");
-      }
-
-      setSupportSubmitted(true);
     } catch (error) {
-      console.error("Erro ao enviar mensagem de suporte:", error);
-      alert("Erro ao enviar mensagem. Por favor, tente novamente.");
-    } finally {
-      setSupportLoading(false);
+      // Error is already handled in the mutation's onError callback
     }
   };
 
@@ -1723,6 +1722,30 @@ function BillingContent({ orgId }: { orgId: string }) {
             </DialogActions>
           )}
         </Dialog>
+
+        {/* Error Toast */}
+        <Snackbar
+          open={!!errorToast}
+          autoHideDuration={6000}
+          onClose={() => setErrorToast(null)}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Alert
+            onClose={() => setErrorToast(null)}
+            severity="error"
+            sx={{
+              width: "100%",
+              bgcolor: "#ef4444",
+              color: "white",
+              fontSize: "1rem",
+              "& .MuiAlert-icon": {
+                color: "white",
+              },
+            }}
+          >
+            {errorToast}
+          </Alert>
+        </Snackbar>
       </Container>
     </Box>
   );
