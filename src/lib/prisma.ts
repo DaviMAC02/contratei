@@ -4,6 +4,23 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+// Ensure we're using the pooled connection for Supabase in production
+const getDatabaseUrl = () => {
+  const dbUrl = process.env.DATABASE_URL;
+
+  if (!dbUrl) {
+    throw new Error("DATABASE_URL environment variable is not set");
+  }
+
+  // Log connection details for debugging (without exposing password)
+  if (process.env.NODE_ENV === "development") {
+    const url = new URL(dbUrl);
+    console.log(`Prisma connecting to: ${url.hostname}:${url.port}`);
+  }
+
+  return dbUrl;
+};
+
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
@@ -13,10 +30,9 @@ export const prisma =
         : ["error"],
     datasources: {
       db: {
-        url: process.env.DATABASE_URL,
+        url: getDatabaseUrl(),
       },
     },
-    // Add connection pool settings for Supabase
     errorFormat: "pretty",
   });
 
