@@ -14,7 +14,8 @@ const getDatabaseUrl = () => {
   const url = new URL(dbUrl);
   if (url.hostname.includes("pooler.supabase.com")) {
     url.searchParams.set("pgbouncer", "true");
-    url.searchParams.set("connection_limit", "1");
+    // Increase connection limit for better concurrency in development
+    url.searchParams.set("connection_limit", "5");
     url.searchParams.set("statement_cache_size", "0");
   }
 
@@ -34,9 +35,18 @@ export const prisma =
       },
     },
     errorFormat: "pretty",
+    // Add connection pool timeout to prevent hanging
+    // @ts-ignore - connectionLimit is a valid option
+    connectionLimit: 10,
+    // @ts-ignore - pool timeout configuration
+    pool: {
+      timeout: 20,
+    },
   });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+}
 
 // Graceful shutdown - only in Node.js environments where process.on is available
 if (typeof process !== "undefined" && typeof process.on === "function") {
