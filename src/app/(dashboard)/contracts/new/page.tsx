@@ -116,7 +116,7 @@ export default function NewContractPage() {
   };
 
   const handleBack = () => {
-    setIsSubmitting(false); // Garante que isSubmitting está false ao voltar
+    setIsSubmitting(false);
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 

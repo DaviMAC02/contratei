@@ -17,26 +17,37 @@ export default async function DashboardLayout({
     redirect("/auth/signin");
   }
 
-  // Get user's first organization
-  const membership = await prisma.orgMember.findFirst({
+  // Check if user has any organization
+  const hasOrg = await prisma.orgMember.findFirst({
     where: { userId: session.user.id },
-    include: { org: true },
-    orderBy: { createdAt: "asc" },
+    select: { orgId: true },
   });
 
-  if (!membership) {
+  if (!hasOrg) {
     redirect("/onboarding");
   }
 
-  const locale = membership.org.locale as Locale;
+  // If user hasn't selected an org, redirect to select-org
+  if (!session.selectedOrgId) {
+    redirect("/select-org");
+  }
+
+  // Get selected org for locale
+  const org = await prisma.org.findUnique({
+    where: { id: session.selectedOrgId },
+    select: { id: true, name: true, locale: true },
+  });
+
+  if (!org) {
+    redirect("/select-org");
+  }
+
+  const locale = org.locale as Locale;
 
   return (
     <AuthProvider>
       <I18nProvider locale={locale}>
-        <DashboardLayoutClient
-          orgId={membership.org.id}
-          orgName={membership.org.name}
-        >
+        <DashboardLayoutClient orgId={org.id} orgName={org.name}>
           {children}
         </DashboardLayoutClient>
       </I18nProvider>
