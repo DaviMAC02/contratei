@@ -5,7 +5,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 const getDatabaseUrl = () => {
-  const dbUrl = process.env.DATABASE_URL;
+  let dbUrl = process.env.DATABASE_URL;
 
   if (!dbUrl) {
     throw new Error("DATABASE_URL environment variable is not set");
@@ -17,7 +17,6 @@ const getDatabaseUrl = () => {
     url.searchParams.set("connection_limit", "5");
     url.searchParams.set("statement_cache_size", "0");
   }
-
   return url.toString();
 };
 
