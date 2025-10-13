@@ -98,7 +98,10 @@ export const supportRouter = createTRPCRouter({
                                           </td>
                                           <td style="vertical-align: top; padding: 8px 0;">
                                             <span style="color: #1f2937; font-size: 15px; font-weight: 600;">
-                                              ${session.user?.name || "Não informado"}
+                                              ${
+                                                session.user?.name ||
+                                                "Não informado"
+                                              }
                                             </span>
                                           </td>
                                         </tr>
@@ -107,7 +110,9 @@ export const supportRouter = createTRPCRouter({
                                             <span style="color: #374151; font-size: 13px; font-weight: 700;">Email:</span>
                                           </td>
                                           <td style="vertical-align: top; padding: 8px 0;">
-                                            <a href="mailto:${session.user.email}" style="color: #1d2b48; font-size: 15px; font-weight: 600; text-decoration: none; border-bottom: 2px solid #1d2b48;">
+                                            <a href="mailto:${
+                                              session.user.email
+                                            }" style="color: #1d2b48; font-size: 15px; font-weight: 600; text-decoration: none; border-bottom: 2px solid #1d2b48;">
                                               ${session.user.email}
                                             </a>
                                           </td>
@@ -128,10 +133,13 @@ export const supportRouter = createTRPCRouter({
                                           </td>
                                           <td style="vertical-align: top; padding: 8px 0;">
                                             <span style="color: #6b7280; font-size: 14px;">
-                                              ${new Date().toLocaleString("pt-BR", {
-                                                dateStyle: "long",
-                                                timeStyle: "short",
-                                              })}
+                                              ${new Date().toLocaleString(
+                                                "pt-BR",
+                                                {
+                                                  dateStyle: "long",
+                                                  timeStyle: "short",
+                                                }
+                                              )}
                                             </span>
                                           </td>
                                         </tr>
@@ -161,7 +169,9 @@ ${message}
                           <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 28px;">
                             <tr>
                               <td align="center" style="padding: 20px 0;">
-                                <a href="mailto:${session.user.email}?subject=Re: ${encodeURIComponent(subject)}" 
+                                <a href="mailto:${
+                                  session.user.email
+                                }?subject=Re: ${encodeURIComponent(subject)}" 
                                    style="display: inline-block; 
                                           background-color: #1d2b48; 
                                           color: #ffffff; 
