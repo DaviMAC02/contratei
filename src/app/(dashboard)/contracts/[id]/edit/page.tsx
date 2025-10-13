@@ -3,15 +3,39 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc-client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Button,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Switch,
+  FormControlLabel,
+  IconButton,
+  Divider,
+} from "@mui/material";
+import { styled } from "@mui/material/styles";
 import { useTranslation } from "@/lib/use-translation";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+
+// Styled Card matching dashboard styles
+const StyledCard = styled(Card)(({ theme }) => ({
+  borderRadius: 8,
+  border: "1px solid #e5e7eb",
+  boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+  transition: "all 0.2s ease",
+  backgroundColor: "#ffffff",
+  "&:hover": {
+    boxShadow: "0 4px 12px 0 rgba(0, 0, 0, 0.1)",
+    borderColor: "#d1d5db",
+  },
+}));
 
 export default function EditContractPage() {
   const params = useParams();
@@ -98,214 +122,296 @@ export default function EditContractPage() {
   }
 
   const contract = contractQuery.data;
-  const members = membersQuery.data || [];
+  const members = Array.isArray(membersQuery.data)
+    ? membersQuery.data
+    : membersQuery.data?.members || [];
 
   return (
     <div className="p-8">
       <div className="mb-6">
         <Link href={`/contracts/${contractId}`}>
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+          <IconButton
+            size="small"
+            sx={{
+              color: "#1d2b48",
+              gap: 1,
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              textTransform: "none",
+            }}
+          >
+            <ArrowLeft style={{ width: 16, height: 16 }} />
             Voltar
-          </Button>
+          </IconButton>
         </Link>
       </div>
 
-      <Card className="max-w-3xl">
-        <CardHeader>
-          <CardTitle>{t("contracts.edit")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Info */}
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="title">Título do Contrato *</Label>
-                <Input
-                  id="title"
-                  name="title"
-                  required
-                  defaultValue={contract.title}
-                />
-              </div>
+      <StyledCard sx={{ maxWidth: 768 }}>
+        <CardContent sx={{ p: 3 }}>
+          <Typography
+            variant="h5"
+            sx={{ fontWeight: 600, mb: 3, color: "#1d2b48" }}
+          >
+            {t("contracts.edit")}
+          </Typography>
+          <form onSubmit={handleSubmit}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {/* Basic Info */}
+              <TextField
+                id="title"
+                name="title"
+                label="Título do Contrato *"
+                required
+                fullWidth
+                defaultValue={contract.title}
+                size="small"
+              />
 
-              <div>
-                <Label htmlFor="contractType">Tipo de Contrato *</Label>
+              <FormControl fullWidth size="small" required>
+                <InputLabel id="contractType-label">
+                  Tipo de Contrato *
+                </InputLabel>
                 <Select
+                  labelId="contractType-label"
                   id="contractType"
                   name="contractType"
-                  required
+                  label="Tipo de Contrato *"
                   defaultValue={contract.contractType}
                 >
-                  <option value="OUTBOUND">
-                    � Contratando Serviço - Cliente (pagando)
-                  </option>
-                  <option value="INBOUND">
-                    � Prestando Serviço - Fornecedor (recebendo)
-                  </option>
+                  <MenuItem value="OUTBOUND">
+                    📤 Contratando Serviço - Cliente (pagando)
+                  </MenuItem>
+                  <MenuItem value="INBOUND">
+                    📥 Prestando Serviço - Fornecedor (recebendo)
+                  </MenuItem>
                 </Select>
-              </div>
+              </FormControl>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="counterpartyName">Contraparte *</Label>
-                  <Input
-                    id="counterpartyName"
-                    name="counterpartyName"
-                    required
-                    defaultValue={contract.counterpartyName}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="counterpartyContact">Contato</Label>
-                  <Input
-                    id="counterpartyContact"
-                    name="counterpartyContact"
-                    defaultValue={contract.counterpartyContact || ""}
-                  />
-                </div>
-              </div>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, 1fr)",
+                  gap: 2,
+                }}
+              >
+                <TextField
+                  id="counterpartyName"
+                  name="counterpartyName"
+                  label="Contraparte *"
+                  required
+                  fullWidth
+                  size="small"
+                  defaultValue={contract.counterpartyName}
+                />
+                <TextField
+                  id="counterpartyContact"
+                  name="counterpartyContact"
+                  label="Contato"
+                  fullWidth
+                  size="small"
+                  defaultValue={contract.counterpartyContact || ""}
+                />
+              </Box>
 
-              <div>
-                <Label htmlFor="ownerUserId">Responsável *</Label>
+              <FormControl fullWidth size="small" required>
+                <InputLabel id="ownerUserId-label">Responsável *</InputLabel>
                 <Select
+                  labelId="ownerUserId-label"
                   id="ownerUserId"
                   name="ownerUserId"
-                  required
+                  label="Responsável *"
                   defaultValue={contract.ownerUserId}
                 >
-                  {members.map((member) => (
-                    <option key={member.userId} value={member.userId}>
+                  {members.map((member: any) => (
+                    <MenuItem key={member.userId} value={member.userId}>
                       {member.user.name || member.user.email}
-                    </option>
+                    </MenuItem>
                   ))}
                 </Select>
-              </div>
-            </div>
+              </FormControl>
 
-            {/* Dates */}
-            <div className="space-y-4">
-              <h3 className="font-medium">Datas e Renovação</h3>
-              <div>
-                <Label htmlFor="endDate">Data de Término</Label>
-                <Input
-                  id="endDate"
-                  name="endDate"
-                  type="date"
+              <Divider sx={{ my: 2 }} />
+
+              {/* Dates */}
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: 600, mb: 2, color: "#1d2b48" }}
+              >
+                Datas e Renovação
+              </Typography>
+
+              <TextField
+                id="endDate"
+                name="endDate"
+                label="Data de Término"
+                type="date"
+                fullWidth
+                size="small"
+                InputLabelProps={{ shrink: true }}
+                defaultValue={
+                  contract.endDate
+                    ? new Date(contract.endDate).toISOString().split("T")[0]
+                    : ""
+                }
+              />
+
+              <FormControlLabel
+                control={
+                  <Switch
+                    id="autoRenew"
+                    name="autoRenew"
+                    defaultChecked={contract.autoRenew}
+                  />
+                }
+                label="Renovação Automática"
+              />
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Financial */}
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: 600, mb: 2, color: "#1d2b48" }}
+              >
+                Informações Financeiras
+              </Typography>
+
+              <TextField
+                id="valueAmount"
+                name="valueAmount"
+                label="Valor *"
+                type="number"
+                inputProps={{ step: "0.01", min: "0" }}
+                required
+                fullWidth
+                size="small"
+                defaultValue={Number(contract.valueAmount)}
+              />
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, 1fr)",
+                  gap: 2,
+                }}
+              >
+                <FormControl fullWidth size="small">
+                  <InputLabel id="adjustmentType-label">
+                    Tipo de Reajuste
+                  </InputLabel>
+                  <Select
+                    labelId="adjustmentType-label"
+                    id="adjustmentType"
+                    name="adjustmentType"
+                    label="Tipo de Reajuste"
+                    defaultValue={contract.adjustmentType}
+                  >
+                    <MenuItem value="NONE">Nenhum</MenuItem>
+                    <MenuItem value="FIXED_PERCENT">Percentual Fixo</MenuItem>
+                    <MenuItem value="INDEX_IPCA">IPCA</MenuItem>
+                  </Select>
+                </FormControl>
+
+                <TextField
+                  id="adjustmentValue"
+                  name="adjustmentValue"
+                  label="Valor do Reajuste (%)"
+                  type="number"
+                  inputProps={{ step: "0.01", min: "0" }}
+                  fullWidth
+                  size="small"
                   defaultValue={
-                    contract.endDate
-                      ? new Date(contract.endDate).toISOString().split("T")[0]
+                    contract.adjustmentValue
+                      ? Number(contract.adjustmentValue)
                       : ""
                   }
                 />
-              </div>
+              </Box>
 
-              <div>
-                <Label htmlFor="autoRenew">Renovação Automática</Label>
-                <Select
-                  id="autoRenew"
-                  name="autoRenew"
-                  defaultValue={contract.autoRenew ? "true" : "false"}
-                >
-                  <option value="true">Sim</option>
-                  <option value="false">Não</option>
-                </Select>
-              </div>
-            </div>
+              <TextField
+                id="costCenter"
+                name="costCenter"
+                label="Centro de Custo"
+                fullWidth
+                size="small"
+                defaultValue={contract.costCenter || ""}
+              />
 
-            {/* Financial */}
-            <div className="space-y-4">
-              <h3 className="font-medium">Informações Financeiras</h3>
-              <div>
-                <Label htmlFor="valueAmount">Valor *</Label>
-                <Input
-                  id="valueAmount"
-                  name="valueAmount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  required
-                  defaultValue={Number(contract.valueAmount)}
-                />
-              </div>
+              <Divider sx={{ my: 2 }} />
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="adjustmentType">Tipo de Reajuste</Label>
-                  <Select
-                    id="adjustmentType"
-                    name="adjustmentType"
-                    defaultValue={contract.adjustmentType}
+              {/* Additional */}
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: 600, mb: 2, color: "#1d2b48" }}
+              >
+                Informações Adicionais
+              </Typography>
+
+              <TextField
+                id="tags"
+                name="tags"
+                label="Tags (separadas por vírgula)"
+                fullWidth
+                size="small"
+                defaultValue={contract.tags.join(", ")}
+              />
+
+              <TextField
+                id="notes"
+                name="notes"
+                label="Observações"
+                multiline
+                rows={4}
+                fullWidth
+                size="small"
+                defaultValue={contract.notes || ""}
+              />
+
+              {/* Actions */}
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 2,
+                  justifyContent: "flex-end",
+                  mt: 3,
+                }}
+              >
+                <Link href={`/contracts/${contractId}`}>
+                  <Button
+                    type="button"
+                    variant="outlined"
+                    size="small"
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 500,
+                      color: "#1d2b48",
+                      borderColor: "#e5e7eb",
+                    }}
                   >
-                    <option value="NONE">Nenhum</option>
-                    <option value="FIXED_PERCENT">Percentual Fixo</option>
-                    <option value="INDEX_IPCA">IPCA</option>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="adjustmentValue">Valor do Reajuste (%)</Label>
-                  <Input
-                    id="adjustmentValue"
-                    name="adjustmentValue"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    defaultValue={
-                      contract.adjustmentValue
-                        ? Number(contract.adjustmentValue)
-                        : ""
-                    }
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="costCenter">Centro de Custo</Label>
-                <Input
-                  id="costCenter"
-                  name="costCenter"
-                  defaultValue={contract.costCenter || ""}
-                />
-              </div>
-            </div>
-
-            {/* Additional */}
-            <div className="space-y-4">
-              <h3 className="font-medium">Informações Adicionais</h3>
-              <div>
-                <Label htmlFor="tags">Tags (separadas por vírgula)</Label>
-                <Input
-                  id="tags"
-                  name="tags"
-                  defaultValue={contract.tags.join(", ")}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="notes">Observações</Label>
-                <Textarea
-                  id="notes"
-                  name="notes"
-                  rows={4}
-                  defaultValue={contract.notes || ""}
-                />
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-4 justify-end">
-              <Link href={`/contracts/${contractId}`}>
-                <Button type="button" variant="outline">
-                  {t("form.cancel")}
+                    {t("form.cancel")}
+                  </Button>
+                </Link>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="small"
+                  disabled={isSubmitting}
+                  sx={{
+                    textTransform: "none",
+                    fontWeight: 500,
+                    bgcolor: "#1d2b48",
+                    "&:hover": {
+                      bgcolor: "#141f35",
+                    },
+                  }}
+                >
+                  {isSubmitting ? "Salvando..." : t("form.save")}
                 </Button>
-              </Link>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Salvando..." : t("form.save")}
-              </Button>
-            </div>
+              </Box>
+            </Box>
           </form>
         </CardContent>
-      </Card>
+      </StyledCard>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@mui/material";
 import { Sidebar } from "@/components/layout/sidebar";
 
 interface DashboardLayoutClientProps {
@@ -29,18 +29,15 @@ export default function DashboardLayoutClient({
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile Header with Hamburger */}
         <div className="lg:hidden flex items-center h-16 border-b px-4 bg-card">
-          <Button
-            variant="ghost"
-            size="icon"
+          <IconButton
             onClick={() => setSidebarOpen(true)}
+            sx={{ color: "#1d2b48" }}
           >
             <Menu className="h-6 w-6" />
-          </Button>
+          </IconButton>
           <span className="ml-4 font-semibold text-lg truncate">{orgName}</span>
         </div>
-        <main className="flex-1 overflow-y-auto bg-background">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto bg-background">{children}</main>
       </div>
     </div>
   );

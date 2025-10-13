@@ -24,7 +24,6 @@ import {
   Skeleton,
   Pagination,
   IconButton,
-  InputAdornment,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { useTranslation } from "@/lib/use-translation";
@@ -35,7 +34,6 @@ import {
 } from "@/lib/utils";
 import {
   Plus,
-  Search,
   Filter,
   Download,
   ChevronLeft,
@@ -43,6 +41,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { DashboardPageWrapper } from "@/components/layout/dashboard-page-wrapper";
+import { DebouncedInput } from "@/components/shared/debounced-input";
 
 const StatsCard = styled(MuiCard)(({ theme }) => ({
   position: "relative",
@@ -187,10 +186,7 @@ function ContractsContent({ orgId, org }: { orgId: string; org: any }) {
               Gerencie todos os seus contratos recorrentes
             </Typography>
           </div>
-          <Link
-            href={`/contracts/new`}
-            className="w-full sm:w-auto"
-          >
+          <Link href={`/contracts/new`} className="w-full sm:w-auto">
             <Button
               variant="contained"
               size="small"
@@ -261,27 +257,10 @@ function ContractsContent({ orgId, org }: { orgId: string; org: any }) {
       >
         <MuiCardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
-            <TextField
-              placeholder={t("form.search")}
+            <DebouncedInput
               value={search}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                handleSearchChange(e.target.value)
-              }
-              size="medium"
-              fullWidth
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search className="h-4 w-4 text-gray-400" />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                flex: 1,
-                "& .MuiOutlinedInput-root": {
-                  height: 42,
-                },
-              }}
+              onChange={handleSearchChange}
+              placeholder={t("form.search")}
             />
             <TextField
               select
@@ -486,14 +465,18 @@ function ContractsContent({ orgId, org }: { orgId: string; org: any }) {
               >
                 <TableHead>
                   <TableRow>
-                    <TableCell>Tipo</TableCell>
-                    <TableCell>{t("contracts.title")}</TableCell>
-                    <TableCell>Contraparte</TableCell>
-                    <TableCell>{t("contracts.owner")}</TableCell>
-                    <TableCell>{t("contracts.value")}</TableCell>
-                    <TableCell>{t("contracts.status")}</TableCell>
-                    <TableCell>{t("contracts.nextRenewal")}</TableCell>
-                    <TableCell align="right">Ações</TableCell>
+                    <TableCell align="center">Tipo</TableCell>
+                    <TableCell align="center">{t("contracts.title")}</TableCell>
+                    <TableCell align="center">Contraparte</TableCell>
+                    <TableCell align="center">{t("contracts.owner")}</TableCell>
+                    <TableCell align="center">{t("contracts.value")}</TableCell>
+                    <TableCell align="center">
+                      {t("contracts.status")}
+                    </TableCell>
+                    <TableCell align="center">
+                      {t("contracts.nextRenewal")}
+                    </TableCell>
+                    <TableCell align="center">Ações</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -526,7 +509,7 @@ function ContractsContent({ orgId, org }: { orgId: string; org: any }) {
                   ) : (
                     filteredContracts.map((contract) => (
                       <TableRow key={contract.id}>
-                        <TableCell>
+                        <TableCell align="center">
                           <Chip
                             label={
                               contract.contractType === "INBOUND"
@@ -551,19 +534,23 @@ function ContractsContent({ orgId, org }: { orgId: string; org: any }) {
                             }}
                           />
                         </TableCell>
-                        <TableCell className="font-medium">
+                        <TableCell align="center" className="font-medium">
                           {contract.title}
                         </TableCell>
-                        <TableCell>{contract.counterpartyName}</TableCell>
-                        <TableCell>{contract.owner.name}</TableCell>
-                        <TableCell>
+                        <TableCell align="center">
+                          {contract.counterpartyName}
+                        </TableCell>
+                        <TableCell align="center">
+                          {contract.owner.name}
+                        </TableCell>
+                        <TableCell align="center">
                           {formatCurrency(
                             Number(contract.valueAmount),
                             contract.currency as any,
                             org?.locale
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell align="center">
                           <Chip
                             label={t(
                               `status.${getStatusTranslationKey(
@@ -586,15 +573,13 @@ function ContractsContent({ orgId, org }: { orgId: string; org: any }) {
                             }}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell align="center">
                           {contract.nextRenewalDate
                             ? formatDate(contract.nextRenewalDate, org?.locale)
                             : "-"}
                         </TableCell>
-                        <TableCell align="right">
-                          <Link
-                            href={`/contracts/${contract.id}`}
-                          >
+                        <TableCell align="center">
+                          <Link href={`/contracts/${contract.id}`}>
                             <Button
                               variant="text"
                               size="small"
@@ -759,10 +744,7 @@ function ContractsContent({ orgId, org }: { orgId: string; org: any }) {
                       </div>
                     )}
 
-                    <Link
-                      href={`/contracts/${contract.id}`}
-                      className="block"
-                    >
+                    <Link href={`/contracts/${contract.id}`} className="block">
                       <Button
                         variant="outlined"
                         size="small"

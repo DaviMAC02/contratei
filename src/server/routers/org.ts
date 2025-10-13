@@ -62,10 +62,15 @@ function getCountryConfig(countryCode: string) {
 }
 
 export const orgRouter = createTRPCRouter({
-  // List user's organizations
+  // List user's organizations (excluding soft-deleted)
   list: protectedProcedure.query(async ({ ctx }) => {
     const memberships = await ctx.prisma.orgMember.findMany({
-      where: { userId: ctx.session!.user.id },
+      where: {
+        userId: ctx.session!.user.id,
+        org: {
+          deletedAt: null, // Only show non-deleted organizations
+        },
+      },
       include: {
         org: true,
       },
@@ -226,7 +231,15 @@ export const orgRouter = createTRPCRouter({
 
   // List members
   listMembers: orgProcedure
-    .input(z.object({ orgId: z.string() }))
+    .input(
+      z.object({
+        orgId: z.string(),
+        search: z.string().optional(),
+        role: z.nativeEnum(OrgRole).optional(),
+        limit: z.number().min(1).max(100).default(10),
+        cursor: z.string().optional(),
+      })
+    )
     .query(async ({ ctx, input }) => {
       // Validate org membership
       await validateOrgMembership(
@@ -235,8 +248,27 @@ export const orgRouter = createTRPCRouter({
         input.orgId
       );
 
-      return ctx.prisma.orgMember.findMany({
-        where: { orgId: input.orgId },
+      const where: any = {
+        orgId: input.orgId,
+      };
+
+      // Add search filter
+      if (input.search) {
+        where.user = {
+          OR: [
+            { name: { contains: input.search, mode: "insensitive" } },
+            { email: { contains: input.search, mode: "insensitive" } },
+          ],
+        };
+      }
+
+      // Add role filter
+      if (input.role) {
+        where.role = input.role;
+      }
+
+      const members = await ctx.prisma.orgMember.findMany({
+        where,
         include: {
           user: {
             select: {
@@ -248,7 +280,21 @@ export const orgRouter = createTRPCRouter({
           },
         },
         orderBy: { createdAt: "asc" },
+        take: input.limit + 1,
+        cursor: input.cursor ? { id: input.cursor } : undefined,
+        skip: input.cursor ? 1 : 0,
       });
+
+      let nextCursor: typeof input.cursor | undefined = undefined;
+      if (members.length > input.limit) {
+        const nextItem = members.pop();
+        nextCursor = nextItem!.id;
+      }
+
+      return {
+        members,
+        nextCursor,
+      };
     }),
 
   // Invite user
@@ -308,6 +354,20 @@ export const orgRouter = createTRPCRouter({
         });
       }
 
+      // Check if user with this email exists in the system
+      const userExists = await ctx.prisma.user.findUnique({
+        where: { email: input.email },
+        select: { id: true, name: true },
+      });
+
+      if (!userExists) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Não foi encontrada uma conta com este email. O usuário deve criar uma conta primeiro.",
+        });
+      }
+
       // Check if user already exists
       const existingMember = await ctx.prisma.orgMember.findFirst({
         where: {
@@ -319,7 +379,7 @@ export const orgRouter = createTRPCRouter({
       if (existingMember) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "User is already a member of this organization",
+          message: "Este usuário já é membro desta organização",
         });
       }
 
@@ -336,7 +396,8 @@ export const orgRouter = createTRPCRouter({
       if (existingInvite && !existingInvite.acceptedAt) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "An invitation has already been sent to this email",
+          message:
+            "Já foi enviado um convite para este email. Verifique se o usuário recebeu o convite.",
         });
       }
 
@@ -527,5 +588,50 @@ export const orgRouter = createTRPCRouter({
       });
 
       return { success: true };
+    }),
+
+  // Soft delete organization (administrative purposes only)
+  // This route should only be called by admins/owners for administrative purposes
+  softDelete: orgProcedure
+    .input(
+      z.object({
+        orgId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Validate org membership and check role - only OWNER can delete
+      const { userRole, org } = await validateOrgMembership(
+        ctx.prisma,
+        ctx.session!.user.id,
+        input.orgId
+      );
+      checkRole(userRole, "OWNER");
+
+      // Check if already deleted
+      if (org.deletedAt) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Organization is already deleted",
+        });
+      }
+
+      // Soft delete the organization
+      const deletedOrg = await ctx.prisma.org.update({
+        where: { id: input.orgId },
+        data: {
+          deletedAt: new Date(),
+        },
+      });
+
+      await createAuditLog({
+        orgId: input.orgId,
+        userId: ctx.session!.user.id,
+        action: "DELETE",
+        entityType: "Org",
+        entityId: input.orgId,
+        metadata: { deletedAt: deletedOrg.deletedAt },
+      });
+
+      return { success: true, deletedAt: deletedOrg.deletedAt };
     }),
 });

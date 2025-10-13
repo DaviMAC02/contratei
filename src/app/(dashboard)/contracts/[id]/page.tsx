@@ -3,17 +3,22 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc-client";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Button,
+  Chip,
+  Card,
+  CardContent,
+  Typography,
+  Box,
   Table,
   TableBody,
   TableCell,
   TableHead,
-  TableHeader,
   TableRow,
-} from "@/components/ui/table";
+  IconButton,
+  Divider,
+} from "@mui/material";
+import { styled } from "@mui/material/styles";
 import { useTranslation } from "@/lib/use-translation";
 import {
   formatCurrency,
@@ -31,6 +36,19 @@ import {
   Download,
 } from "lucide-react";
 import Link from "next/link";
+
+// Styled Card matching dashboard styles
+const StyledCard = styled(Card)(({ theme }) => ({
+  borderRadius: 8,
+  border: "1px solid #e5e7eb",
+  boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+  transition: "all 0.2s ease",
+  backgroundColor: "#ffffff",
+  "&:hover": {
+    boxShadow: "0 4px 12px 0 rgba(0, 0, 0, 0.1)",
+    borderColor: "#d1d5db",
+  },
+}));
 
 export default function ContractDetailPage() {
   const params = useParams();
@@ -106,13 +124,21 @@ export default function ContractDetailPage() {
 
   return (
     <div className="p-8">
-      {/* Header */}
       <div className="mb-6">
         <Link href={`/contracts`}>
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+          <IconButton
+            size="small"
+            sx={{
+              color: "#1d2b48",
+              gap: 1,
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              textTransform: "none",
+            }}
+          >
+            <ArrowLeft style={{ width: 16, height: 16 }} />
             Voltar
-          </Button>
+          </IconButton>
         </Link>
       </div>
 
@@ -122,46 +148,78 @@ export default function ContractDetailPage() {
             <h1 className="text-3xl font-bold tracking-tight">
               {contract.title}
             </h1>
-            <Badge
-              variant={
+            <Chip
+              label={t(
+                `status.${getStatusTranslationKey(contract.status)}` as any
+              )}
+              color={
                 contract.status === "ACTIVE"
                   ? "success"
                   : contract.status === "DUE_SOON"
                   ? "warning"
                   : contract.status === "EXPIRED"
-                  ? "destructive"
-                  : "secondary"
+                  ? "error"
+                  : "default"
               }
-            >
-              {t(`status.${getStatusTranslationKey(contract.status)}` as any)}
-            </Badge>
-            <Badge
+              size="small"
+            />
+            <Chip
+              label={
+                contract.contractType === "INBOUND"
+                  ? "📥 Prestando"
+                  : "📤 Contratando"
+              }
               variant={
-                contract.contractType === "INBOUND" ? "default" : "outline"
+                contract.contractType === "INBOUND" ? "filled" : "outlined"
               }
-              className="ml-2"
-            >
-              {contract.contractType === "INBOUND"
-                ? "� Prestando"
-                : "� Contratando"}
-            </Badge>
+              size="small"
+              sx={{ ml: 1 }}
+            />
           </div>
           <p className="text-muted-foreground">{contract.counterpartyName}</p>
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleRenew}>
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={handleRenew}
+            startIcon={<RefreshCw style={{ width: 16, height: 16 }} />}
+            sx={{
+              textTransform: "none",
+              fontWeight: 500,
+              color: "#1d2b48",
+              borderColor: "#e5e7eb",
+            }}
+          >
             {t("contracts.renew")}
           </Button>
           <Link href={`/contracts/${contractId}/edit`}>
-            <Button variant="outline">
-              <Edit className="h-4 w-4 mr-2" />
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Edit style={{ width: 16, height: 16 }} />}
+              sx={{
+                textTransform: "none",
+                fontWeight: 500,
+                color: "#1d2b48",
+                borderColor: "#e5e7eb",
+              }}
+            >
               {t("contracts.edit")}
             </Button>
           </Link>
-          <Button variant="destructive" onClick={handleDelete}>
-            <Trash2 className="h-4 w-4 mr-2" />
+          <Button
+            variant="contained"
+            size="small"
+            color="error"
+            onClick={handleDelete}
+            startIcon={<Trash2 style={{ width: 16, height: 16 }} />}
+            sx={{
+              textTransform: "none",
+              fontWeight: 500,
+            }}
+          >
             {t("contracts.delete")}
           </Button>
         </div>
@@ -169,142 +227,201 @@ export default function ContractDetailPage() {
 
       <div className="grid gap-6 md:grid-cols-2 mb-8">
         {/* Contract Details */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Detalhes do Contrato</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Responsável:</span>
-              <span className="font-medium">{contract.owner.name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Valor:</span>
-              <span className="font-medium">
-                {formatCurrency(
-                  Number(contract.valueAmount),
-                  contract.currency as any,
-                  org?.locale
-                )}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Data de Início:</span>
-              <span>{formatDate(contract.startDate, org?.locale)}</span>
-            </div>
-            {contract.endDate && (
+        <StyledCard>
+          <CardContent>
+            <Typography
+              variant="h6"
+              sx={{ fontWeight: 600, mb: 2, color: "#1d2b48" }}
+            >
+              Detalhes do Contrato
+            </Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Data de Término:</span>
-                <span>{formatDate(contract.endDate, org?.locale)}</span>
+                <span className="text-muted-foreground">Responsável:</span>
+                <span className="font-medium">{contract.owner.name}</span>
               </div>
-            )}
-            {contract.nextRenewalDate && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Valor:</span>
+                <span className="font-medium">
+                  {formatCurrency(
+                    Number(contract.valueAmount),
+                    contract.currency as any,
+                    org?.locale
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Data de Início:</span>
+                <span>{formatDate(contract.startDate, org?.locale)}</span>
+              </div>
+              {contract.endDate && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    Data de Término:
+                  </span>
+                  <span>{formatDate(contract.endDate, org?.locale)}</span>
+                </div>
+              )}
+              {contract.nextRenewalDate && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    Próxima Renovação:
+                  </span>
+                  <span>
+                    {formatDate(contract.nextRenewalDate, org?.locale)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Periodicidade:</span>
+                <span>
+                  {t(
+                    `periodicity.${contract.periodicity.toLowerCase()}` as any
+                  )}
+                </span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">
-                  Próxima Renovação:
+                  Renovação Automática:
                 </span>
-                <span>{formatDate(contract.nextRenewalDate, org?.locale)}</span>
+                <span>{contract.autoRenew ? "Sim" : "Não"}</span>
               </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Periodicidade:</span>
-              <span>
-                {t(`periodicity.${contract.periodicity.toLowerCase()}` as any)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">
-                Renovação Automática:
-              </span>
-              <span>{contract.autoRenew ? "Sim" : "Não"}</span>
-            </div>
-            {contract.costCenter && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Centro de Custo:</span>
-                <span>{contract.costCenter}</span>
-              </div>
-            )}
-            {contract.tags.length > 0 && (
-              <div>
-                <span className="text-muted-foreground mb-2 block">Tags:</span>
-                <div className="flex flex-wrap gap-2">
-                  {contract.tags.map((tag) => (
-                    <Badge key={tag} variant="outline">
-                      {tag}
-                    </Badge>
-                  ))}
+              {contract.costCenter && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    Centro de Custo:
+                  </span>
+                  <span>{contract.costCenter}</span>
                 </div>
-              </div>
-            )}
+              )}
+              {contract.tags.length > 0 && (
+                <Box>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
+                    Tags:
+                  </Typography>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                    {contract.tags.map((tag) => (
+                      <Chip
+                        key={tag}
+                        label={tag}
+                        variant="outlined"
+                        size="small"
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </Box>
           </CardContent>
-        </Card>
+        </StyledCard>
 
         {/* Supplier Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Informações do Fornecedor</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Nome:</span>
-              <span className="font-medium">{contract.counterpartyName}</span>
-            </div>
-            {contract.counterpartyContact && (
+        <StyledCard>
+          <CardContent>
+            <Typography
+              variant="h6"
+              sx={{ fontWeight: 600, mb: 2, color: "#1d2b48" }}
+            >
+              Informações do Fornecedor
+            </Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Contato:</span>
-                <span>{contract.counterpartyContact}</span>
+                <span className="text-muted-foreground">Nome:</span>
+                <span className="font-medium">{contract.counterpartyName}</span>
               </div>
-            )}
-            {contract.notes && (
-              <div>
-                <span className="text-muted-foreground mb-2 block">
-                  Observações:
-                </span>
-                <p className="text-sm whitespace-pre-wrap">{contract.notes}</p>
-              </div>
-            )}
+              {contract.counterpartyContact && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Contato:</span>
+                  <span>{contract.counterpartyContact}</span>
+                </div>
+              )}
+              {contract.notes && (
+                <Box>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
+                    Observações:
+                  </Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+                    {contract.notes}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
           </CardContent>
-        </Card>
+        </StyledCard>
       </div>
 
       {/* Files */}
-      <Card className="mb-8">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>{t("contracts.files")}</CardTitle>
-            <Button size="sm">
-              <Upload className="h-4 w-4 mr-2" />
+      <StyledCard sx={{ mb: 4 }}>
+        <CardContent>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mb: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 600, color: "#1d2b48" }}>
+              {t("contracts.files")}
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<Upload style={{ width: 16, height: 16 }} />}
+              sx={{
+                textTransform: "none",
+                fontWeight: 500,
+                color: "#1d2b48",
+                borderColor: "#e5e7eb",
+              }}
+            >
               Upload Arquivo
             </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
+          </Box>
           {files.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
+            <Typography
+              sx={{ textAlign: "center", color: "text.secondary", py: 4 }}
+            >
               Nenhum arquivo anexado
-            </p>
+            </Typography>
           ) : (
             <Table>
-              <TableHeader>
+              <TableHead>
                 <TableRow>
-                  <TableHead>Nome do Arquivo</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Tamanho</TableHead>
-                  <TableHead>Upload em</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                  <TableCell>Nome do Arquivo</TableCell>
+                  <TableCell>Tipo</TableCell>
+                  <TableCell>Tamanho</TableCell>
+                  <TableCell>Upload em</TableCell>
+                  <TableCell align="right">Ações</TableCell>
                 </TableRow>
-              </TableHeader>
+              </TableHead>
               <TableBody>
                 {files.map((file) => (
                   <TableRow key={file.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
+                    <TableCell sx={{ fontWeight: 500 }}>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                      >
+                        <FileText
+                          style={{ width: 16, height: 16, color: "#6b7280" }}
+                        />
                         {file.fileName}
-                      </div>
+                      </Box>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{file.fileType}</Badge>
+                      <Chip
+                        label={file.fileType}
+                        variant="outlined"
+                        size="small"
+                      />
                     </TableCell>
                     <TableCell>
                       {(file.sizeBytes / 1024).toFixed(0)} KB
@@ -312,10 +429,10 @@ export default function ContractDetailPage() {
                     <TableCell>
                       {formatDate(file.uploadedAt, org?.locale)}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm">
-                        <Download className="h-4 w-4" />
-                      </Button>
+                    <TableCell align="right">
+                      <IconButton size="small">
+                        <Download style={{ width: 16, height: 16 }} />
+                      </IconButton>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -323,25 +440,28 @@ export default function ContractDetailPage() {
             </Table>
           )}
         </CardContent>
-      </Card>
+      </StyledCard>
 
       {/* Adjustments History */}
       {contract.adjustments.length > 0 && (
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>{t("contracts.adjustments")}</CardTitle>
-          </CardHeader>
+        <StyledCard sx={{ mb: 4 }}>
           <CardContent>
+            <Typography
+              variant="h6"
+              sx={{ fontWeight: 600, mb: 2, color: "#1d2b48" }}
+            >
+              {t("contracts.adjustments")}
+            </Typography>
             <Table>
-              <TableHeader>
+              <TableHead>
                 <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Valor Anterior</TableHead>
-                  <TableHead>Novo Valor</TableHead>
-                  <TableHead>Percentual</TableHead>
-                  <TableHead>Motivo</TableHead>
+                  <TableCell>Data</TableCell>
+                  <TableCell>Valor Anterior</TableCell>
+                  <TableCell>Novo Valor</TableCell>
+                  <TableCell>Percentual</TableCell>
+                  <TableCell>Motivo</TableCell>
                 </TableRow>
-              </TableHeader>
+              </TableHead>
               <TableBody>
                 {contract.adjustments.map((adj) => (
                   <TableRow key={adj.id}>
@@ -363,7 +483,11 @@ export default function ContractDetailPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{Number(adj.percentage)}%</Badge>
+                      <Chip
+                        label={`${Number(adj.percentage)}%`}
+                        variant="outlined"
+                        size="small"
+                      />
                     </TableCell>
                     <TableCell>{adj.reason || "-"}</TableCell>
                   </TableRow>
@@ -371,24 +495,27 @@ export default function ContractDetailPage() {
               </TableBody>
             </Table>
           </CardContent>
-        </Card>
+        </StyledCard>
       )}
 
       {/* Renewal History */}
       {contract.renewalHistory.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("contracts.history")}</CardTitle>
-          </CardHeader>
+        <StyledCard>
           <CardContent>
+            <Typography
+              variant="h6"
+              sx={{ fontWeight: 600, mb: 2, color: "#1d2b48" }}
+            >
+              {t("contracts.history")}
+            </Typography>
             <Table>
-              <TableHeader>
+              <TableHead>
                 <TableRow>
-                  <TableHead>Data de Renovação</TableHead>
-                  <TableHead>Término Anterior</TableHead>
-                  <TableHead>Novo Término</TableHead>
+                  <TableCell>Data de Renovação</TableCell>
+                  <TableCell>Término Anterior</TableCell>
+                  <TableCell>Novo Término</TableCell>
                 </TableRow>
-              </TableHeader>
+              </TableHead>
               <TableBody>
                 {contract.renewalHistory.map((renewal) => (
                   <TableRow key={renewal.id}>
@@ -406,7 +533,7 @@ export default function ContractDetailPage() {
               </TableBody>
             </Table>
           </CardContent>
-        </Card>
+        </StyledCard>
       )}
     </div>
   );

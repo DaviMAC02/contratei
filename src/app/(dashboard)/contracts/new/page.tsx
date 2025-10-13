@@ -186,7 +186,7 @@ export default function NewContractPage() {
     return <div className="p-8">Loading...</div>;
   }
 
-  const members = membersQuery.data || [];
+  const members = membersQuery.data?.members || [];
 
   const renderStepContent = (step: number) => {
     switch (step) {

@@ -1,42 +1,80 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, Typography, Box } from "@mui/material";
 import { Mail, CheckCircle } from "lucide-react";
 
 export default function VerifyRequestPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-            <CheckCircle className="h-6 w-6 text-green-600" />
-          </div>
-          <CardTitle className="text-2xl">Verifique seu Email</CardTitle>
-        </CardHeader>
-        <CardContent className="text-center space-y-4">
-          <div className="flex items-center justify-center mb-6">
-            <Mail className="h-16 w-16 text-muted-foreground" />
-          </div>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
+        p: 2,
+      }}
+    >
+      <Card sx={{ maxWidth: 480, width: "100%" }}>
+        <CardContent sx={{ p: 4, textAlign: "center" }}>
+          <Box
+            sx={{
+              mx: "auto",
+              mb: 3,
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              bgcolor: "#d1fae5",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <CheckCircle style={{ width: 28, height: 28, color: "#059669" }} />
+          </Box>
 
-          <p className="text-muted-foreground">
+          <Typography variant="h4" sx={{ fontWeight: 600, mb: 3 }}>
+            Verifique seu Email
+          </Typography>
+
+          <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
+            <Mail style={{ width: 64, height: 64, color: "#9ca3af" }} />
+          </Box>
+
+          <Typography variant="body1" sx={{ color: "text.secondary", mb: 2 }}>
             Um link de acesso foi enviado para seu email.
-          </p>
+          </Typography>
 
-          <p className="text-sm text-muted-foreground">
+          <Typography variant="body2" sx={{ color: "text.secondary", mb: 4 }}>
             Clique no link no email para entrar na sua conta. O link expira em
             24 horas.
-          </p>
+          </Typography>
 
-          <div className="bg-muted/50 p-4 rounded-lg text-left space-y-2 mt-6">
-            <p className="text-sm font-medium">Não recebeu o email?</p>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• Verifique sua pasta de spam</li>
-              <li>• Confirme se o email está correto</li>
-              <li>• Aguarde alguns minutos e tente novamente</li>
-            </ul>
-          </div>
+          <Box
+            sx={{
+              bgcolor: "#f3f4f6",
+              p: 3,
+              borderRadius: 1,
+              textAlign: "left",
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>
+              Não recebeu o email?
+            </Typography>
+            <Box component="ul" sx={{ pl: 2, m: 0, color: "text.secondary" }}>
+              <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                Verifique sua pasta de spam
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                Confirme se o email está correto
+              </Typography>
+              <Typography component="li" variant="body2">
+                Aguarde alguns minutos e tente novamente
+              </Typography>
+            </Box>
+          </Box>
         </CardContent>
       </Card>
-    </div>
+    </Box>
   );
 }

@@ -2,15 +2,44 @@
 
 import { useState } from "react";
 import { trpc } from "@/lib/trpc-client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  FormHelperText,
+  Alert,
+  CircularProgress,
+} from "@mui/material";
+import { styled } from "@mui/material/styles";
+import {
+  Save as SaveIcon,
+  Notifications as NotificationsIcon,
+  Language as LanguageIcon,
+  Business as BusinessIcon,
+} from "@mui/icons-material";
 import { useTranslation } from "@/lib/use-translation";
-import { Save, Bell, Globe, Building } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { DashboardPageWrapper } from "@/components/layout/dashboard-page-wrapper";
+
+// Styled Card matching dashboard styles
+const StyledCard = styled(Card)(({ theme }) => ({
+  borderRadius: 8,
+  border: "1px solid #e5e7eb",
+  boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+  transition: "all 0.2s ease",
+  backgroundColor: "#ffffff",
+  "&:hover": {
+    boxShadow: "0 4px 12px 0 rgba(0, 0, 0, 0.1)",
+    borderColor: "#d1d5db",
+  },
+}));
 
 export default function SettingsPage() {
   return (
@@ -23,10 +52,12 @@ export default function SettingsPage() {
 function SettingsContent({ orgId, org }: { orgId: string; org: any }) {
   const { t } = useTranslation();
   const { data: session } = useSession();
+  const [successMessage, setSuccessMessage] = useState("");
 
   const updateOrgMutation = trpc.org.update.useMutation({
     onSuccess: () => {
-      alert("Configurações salvas com sucesso!");
+      setSuccessMessage("Configurações salvas com sucesso!");
+      setTimeout(() => setSuccessMessage(""), 3000);
     },
   });
 
@@ -38,202 +69,348 @@ function SettingsContent({ orgId, org }: { orgId: string; org: any }) {
     await updateOrgMutation.mutateAsync({
       orgId,
       name: formData.get("name") as string,
-      // TODO: Add more updatable fields as needed
     });
   };
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">
-          {t("nav.settings")}
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Configure sua organização e preferências
-        </p>
-      </div>
+    <Box
+      className="p-4 md:p-6 lg:p-8 bg-gray-50/50 min-h-screen"
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+      }}
+    >
+      <Box sx={{ width: "100%", maxWidth: 900 }}>
+        {/* Header */}
+        <Box className="mb-8">
+          <Typography variant="h4" className="font-semibold text-gray-900 mb-1">
+            {t("nav.settings")}
+          </Typography>
+          <Typography variant="body2" className="text-gray-500">
+            Configure sua organização e preferências
+          </Typography>
+        </Box>
 
-      <div className="grid gap-6 max-w-3xl">
-        {/* Organization Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building className="h-5 w-5" />
-              Organização
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleUpdateOrg} className="space-y-4">
-              <div>
-                <Label htmlFor="name">Nome da Organização *</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  required
-                  defaultValue={org?.name}
-                />
-              </div>
+        {successMessage && (
+          <Alert severity="success" sx={{ mb: 3 }}>
+            {successMessage}
+          </Alert>
+        )}
 
-              <div>
-                <Label htmlFor="country">País / Região *</Label>
-                <Select
-                  id="country"
-                  name="country"
-                  required
-                  defaultValue={org?.country}
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          {/* Organization Settings */}
+          <StyledCard>
+            <CardContent className="p-6">
+              <Box className="flex items-center gap-2 mb-6">
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 1.5,
+                    bgcolor: "#e8f4f2",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                 >
-                  <option value="BR">Brasil (BRL)</option>
-                  <option value="US">Estados Unidos (USD)</option>
-                </Select>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Define a moeda e idioma padrão da organização
-                </p>
-              </div>
+                  <BusinessIcon sx={{ color: "#1d2b48", fontSize: 20 }} />
+                </Box>
+                <Typography
+                  variant="h6"
+                  className="font-semibold text-gray-900"
+                >
+                  Organização
+                </Typography>
+              </Box>
 
-              <div className="pt-4">
-                <Button type="submit" disabled={updateOrgMutation.isPending}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {updateOrgMutation.isPending
-                    ? "Salvando..."
-                    : "Salvar Alterações"}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+              <form onSubmit={handleUpdateOrg}>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <TextField
+                    fullWidth
+                    id="name"
+                    name="name"
+                    label="Nome da Organização"
+                    required
+                    defaultValue={org?.name}
+                    variant="outlined"
+                    size="small"
+                  />
 
-        {/* Profile Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Perfil do Usuário</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Nome</Label>
-              <Input value={session?.user?.name || ""} disabled />
-            </div>
+                  <FormControl fullWidth required size="small">
+                    <InputLabel id="country-label">País / Região</InputLabel>
+                    <Select
+                      labelId="country-label"
+                      id="country"
+                      name="country"
+                      defaultValue={org?.country || "BR"}
+                      label="País / Região"
+                    >
+                      <MenuItem value="BR">Brasil (BRL)</MenuItem>
+                      <MenuItem value="US">Estados Unidos (USD)</MenuItem>
+                    </Select>
+                    <FormHelperText className="text-gray-500">
+                      Define a moeda e idioma padrão da organização
+                    </FormHelperText>
+                  </FormControl>
 
-            <div>
-              <Label>Email</Label>
-              <Input value={session?.user?.email || ""} disabled />
-            </div>
+                  <Box sx={{ pt: 1 }}>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      size="small"
+                      startIcon={
+                        updateOrgMutation.isPending ? (
+                          <CircularProgress size={16} sx={{ color: "#fff" }} />
+                        ) : (
+                          <SaveIcon />
+                        )
+                      }
+                      disabled={updateOrgMutation.isPending}
+                      sx={{
+                        bgcolor: "#1d2b48",
+                        "&:hover": { bgcolor: "#141f35" },
+                        textTransform: "none",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {updateOrgMutation.isPending
+                        ? "Salvando..."
+                        : "Salvar Alterações"}
+                    </Button>
+                  </Box>
+                </Box>
+              </form>
+            </CardContent>
+          </StyledCard>
 
-            <p className="text-sm text-muted-foreground">
-              Para alterar seu nome ou email, entre em contato com o suporte.
-            </p>
-          </CardContent>
-        </Card>
+          {/* Profile Settings */}
+          <StyledCard>
+            <CardContent className="p-6">
+              <Typography
+                variant="h6"
+                className="font-semibold text-gray-900 mb-6"
+              >
+                Perfil do Usuário
+              </Typography>
 
-        {/* Notification Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Notificações
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="alert90">Alertas 90 dias antes</Label>
-              <Select id="alert90" defaultValue="true">
-                <option value="true">Ativado</option>
-                <option value="false">Desativado</option>
-              </Select>
-            </div>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                <TextField
+                  fullWidth
+                  label="Nome"
+                  value={session?.user?.name || ""}
+                  disabled
+                  variant="outlined"
+                  size="small"
+                />
 
-            <div>
-              <Label htmlFor="alert60">Alertas 60 dias antes</Label>
-              <Select id="alert60" defaultValue="true">
-                <option value="true">Ativado</option>
-                <option value="false">Desativado</option>
-              </Select>
-            </div>
+                <TextField
+                  fullWidth
+                  label="Email"
+                  value={session?.user?.email || ""}
+                  disabled
+                  variant="outlined"
+                  size="small"
+                />
 
-            <div>
-              <Label htmlFor="alert30">Alertas 30 dias antes</Label>
-              <Select id="alert30" defaultValue="true">
-                <option value="true">Ativado</option>
-                <option value="false">Desativado</option>
-              </Select>
-            </div>
+                <Typography variant="body2" className="text-gray-500">
+                  Para alterar seu nome ou email, entre em contato com o
+                  suporte.
+                </Typography>
+              </Box>
+            </CardContent>
+          </StyledCard>
 
-            <div>
-              <Label htmlFor="timezone">Fuso Horário</Label>
-              <Select id="timezone" defaultValue="America/Sao_Paulo">
-                <option value="America/Sao_Paulo">Brasília (GMT-3)</option>
-                <option value="America/New_York">Nova York (GMT-5)</option>
-                <option value="Europe/London">Londres (GMT+0)</option>
-                <option value="Asia/Tokyo">Tóquio (GMT+9)</option>
-              </Select>
-            </div>
+          {/* Notification Settings */}
+          <StyledCard>
+            <CardContent className="p-6">
+              <Box className="flex items-center gap-2 mb-6">
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 1.5,
+                    bgcolor: "#e8f4f2",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <NotificationsIcon sx={{ color: "#1d2b48", fontSize: 20 }} />
+                </Box>
+                <Typography
+                  variant="h6"
+                  className="font-semibold text-gray-900"
+                >
+                  Notificações
+                </Typography>
+              </Box>
 
-            <Button variant="outline">
-              <Save className="h-4 w-4 mr-2" />
-              Salvar Preferências
-            </Button>
-          </CardContent>
-        </Card>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="alert90-label">
+                    Alertas 90 dias antes
+                  </InputLabel>
+                  <Select
+                    labelId="alert90-label"
+                    id="alert90"
+                    defaultValue="true"
+                    label="Alertas 90 dias antes"
+                  >
+                    <MenuItem value="true">Ativado</MenuItem>
+                    <MenuItem value="false">Desativado</MenuItem>
+                  </Select>
+                </FormControl>
 
-        {/* Localization */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              Localização
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Idioma</Label>
-              <Input
-                value={
-                  org?.locale === "pt-BR"
-                    ? "Português (Brasil)"
-                    : "English (US)"
-                }
-                disabled
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                O idioma é definido automaticamente pelo país da organização
-              </p>
-            </div>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="alert60-label">
+                    Alertas 60 dias antes
+                  </InputLabel>
+                  <Select
+                    labelId="alert60-label"
+                    id="alert60"
+                    defaultValue="true"
+                    label="Alertas 60 dias antes"
+                  >
+                    <MenuItem value="true">Ativado</MenuItem>
+                    <MenuItem value="false">Desativado</MenuItem>
+                  </Select>
+                </FormControl>
 
-            <div>
-              <Label>Moeda</Label>
-              <Input value={org?.currency || "BRL"} disabled />
-              <p className="text-sm text-muted-foreground mt-1">
-                A moeda é definida automaticamente pelo país da organização
-              </p>
-            </div>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="alert30-label">
+                    Alertas 30 dias antes
+                  </InputLabel>
+                  <Select
+                    labelId="alert30-label"
+                    id="alert30"
+                    defaultValue="true"
+                    label="Alertas 30 dias antes"
+                  >
+                    <MenuItem value="true">Ativado</MenuItem>
+                    <MenuItem value="false">Desativado</MenuItem>
+                  </Select>
+                </FormControl>
 
-            <div>
-              <Label>Formato de Data</Label>
-              <Input
-                value={org?.locale === "pt-BR" ? "DD/MM/YYYY" : "MM/DD/YYYY"}
-                disabled
-              />
-            </div>
-          </CardContent>
-        </Card>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="timezone-label">Fuso Horário</InputLabel>
+                  <Select
+                    labelId="timezone-label"
+                    id="timezone"
+                    defaultValue="America/Sao_Paulo"
+                    label="Fuso Horário"
+                  >
+                    <MenuItem value="America/Sao_Paulo">
+                      Brasília (GMT-3)
+                    </MenuItem>
+                    <MenuItem value="America/New_York">
+                      Nova York (GMT-5)
+                    </MenuItem>
+                    <MenuItem value="Europe/London">Londres (GMT+0)</MenuItem>
+                    <MenuItem value="Asia/Tokyo">Tóquio (GMT+9)</MenuItem>
+                  </Select>
+                </FormControl>
 
-        {/* Danger Zone */}
-        <Card className="border-red-200">
-          <CardHeader>
-            <CardTitle className="text-red-600">Zona de Perigo</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h4 className="font-medium mb-2">Excluir Organização</h4>
-              <p className="text-sm text-muted-foreground mb-4">
-                Esta ação não pode ser desfeita. Todos os contratos, arquivos e
-                dados serão permanentemente excluídos.
-              </p>
-              <Button variant="destructive">Excluir Organização</Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+                <Box sx={{ pt: 1 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<SaveIcon />}
+                    sx={{
+                      borderColor: "#1d2b48",
+                      color: "#1d2b48",
+                      "&:hover": {
+                        borderColor: "#141f35",
+                        bgcolor: "rgba(29, 43, 72, 0.04)",
+                      },
+                      textTransform: "none",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Salvar Preferências
+                  </Button>
+                </Box>
+              </Box>
+            </CardContent>
+          </StyledCard>
+
+          {/* Localization */}
+          <StyledCard>
+            <CardContent className="p-6">
+              <Box className="flex items-center gap-2 mb-6">
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 1.5,
+                    bgcolor: "#e8f4f2",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <LanguageIcon sx={{ color: "#1d2b48", fontSize: 20 }} />
+                </Box>
+                <Typography
+                  variant="h6"
+                  className="font-semibold text-gray-900"
+                >
+                  Localização
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                <Box>
+                  <TextField
+                    fullWidth
+                    label="Idioma"
+                    value={
+                      org?.locale === "pt-BR"
+                        ? "Português (Brasil)"
+                        : "English (US)"
+                    }
+                    disabled
+                    variant="outlined"
+                    size="small"
+                  />
+                  <FormHelperText
+                    className="text-gray-500"
+                    sx={{ ml: 0, mt: 1 }}
+                  >
+                    O idioma é definido automaticamente pelo país da organização
+                  </FormHelperText>
+                </Box>
+
+                <Box>
+                  <TextField
+                    fullWidth
+                    label="Moeda"
+                    value={org?.currency || "BRL"}
+                    disabled
+                    variant="outlined"
+                    size="small"
+                  />
+                  <FormHelperText
+                    className="text-gray-500"
+                    sx={{ ml: 0, mt: 1 }}
+                  >
+                    A moeda é definida automaticamente pelo país da organização
+                  </FormHelperText>
+                </Box>
+
+                <TextField
+                  fullWidth
+                  label="Formato de Data"
+                  value={org?.locale === "pt-BR" ? "DD/MM/YYYY" : "MM/DD/YYYY"}
+                  disabled
+                  variant="outlined"
+                  size="small"
+                />
+              </Box>
+            </CardContent>
+          </StyledCard>
+        </Box>
+      </Box>
+    </Box>
   );
 }

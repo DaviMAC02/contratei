@@ -4,12 +4,23 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc-client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Button,
+  TextField,
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  LinearProgress,
+  CircularProgress,
+  FormHelperText,
+  Switch,
+  FormControlLabel,
+} from "@mui/material";
 import {
   Building,
   FileText,
@@ -116,75 +127,103 @@ export default function OnboardingPage() {
 
   if (isLoading || orgsQuery.isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Carregando...</p>
-        </div>
-      </div>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
+        }}
+      >
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+          <CircularProgress size={40} sx={{ color: "#1d2b48" }} />
+          <Typography sx={{ color: "text.secondary" }}>Carregando...</Typography>
+        </Box>
+      </Box>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader>
-          <div className="flex items-center justify-between mb-4">
-            <CardTitle className="text-2xl">Bem-vindo!</CardTitle>
-            <span className="text-sm text-muted-foreground">
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
+        p: 2,
+      }}
+    >
+      <Card sx={{ maxWidth: 800, width: "100%" }}>
+        <CardContent sx={{ p: 4 }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
+            <Typography variant="h4" sx={{ fontWeight: 600 }}>
+              Bem-vindo!
+            </Typography>
+            <Typography variant="body2" sx={{ color: "text.secondary" }}>
               Passo {needsOrgCreation ? step : step - 1} de {totalSteps}
-            </span>
-          </div>
+            </Typography>
+          </Box>
 
           {/* Progress Bar */}
-          <div className="w-full bg-muted rounded-full h-2">
-            <div
-              className="bg-primary h-2 rounded-full transition-all"
-              style={{
-                width: `${
-                  ((needsOrgCreation ? step : step - 1) / totalSteps) * 100
-                }%`,
-              }}
-            />
-          </div>
-        </CardHeader>
-
-        <CardContent className="pt-6">
+          <LinearProgress
+            variant="determinate"
+            value={((needsOrgCreation ? step : step - 1) / totalSteps) * 100}
+            sx={{
+              mb: 4,
+              height: 8,
+              borderRadius: 1,
+              bgcolor: "#e2e8f0",
+              "& .MuiLinearProgress-bar": {
+                bgcolor: "#1d2b48",
+                borderRadius: 1,
+              },
+            }}
+          />
           {/* Step 1: Create Organization */}
           {step === 1 && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                  <Building className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    height: 40,
+                    width: 40,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: "50%",
+                    bgcolor: "#1d2b48",
+                    color: "white",
+                  }}
+                >
+                  <Building size={20} />
+                </Box>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
                     Crie sua Organização
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
                     Configure as informações básicas da sua empresa
-                  </p>
-                </div>
-              </div>
+                  </Typography>
+                </Box>
+              </Box>
 
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="orgName">Nome da Organização *</Label>
-                  <Input
-                    id="orgName"
-                    placeholder="Minha Empresa LTDA"
-                    value={orgData.name}
-                    onChange={(e) =>
-                      setOrgData({ ...orgData, name: e.target.value })
-                    }
-                    required
-                  />
-                </div>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                <TextField
+                  fullWidth
+                  label="Nome da Organização *"
+                  placeholder="Minha Empresa LTDA"
+                  value={orgData.name}
+                  onChange={(e) =>
+                    setOrgData({ ...orgData, name: e.target.value })
+                  }
+                  required
+                />
 
-                <div>
-                  <Label htmlFor="country">País / Região *</Label>
+                <FormControl fullWidth>
+                  <InputLabel>País / Região *</InputLabel>
                   <Select
-                    id="country"
                     value={orgData.country}
                     onChange={(e) =>
                       setOrgData({
@@ -192,116 +231,119 @@ export default function OnboardingPage() {
                         country: e.target.value as "BR" | "US",
                       })
                     }
+                    label="País / Região *"
                   >
-                    <option value="BR">🇧🇷 Brasil (BRL - Português)</option>
-                    <option value="US">
-                      🇺🇸 Estados Unidos (USD - English)
-                    </option>
+                    <MenuItem value="BR">🇧🇷 Brasil (BRL - Português)</MenuItem>
+                    <MenuItem value="US">🇺🇸 Estados Unidos (USD - English)</MenuItem>
                   </Select>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <FormHelperText>
                     Define a moeda e idioma da sua organização
-                  </p>
-                </div>
-              </div>
+                  </FormHelperText>
+                </FormControl>
+              </Box>
 
-              <div className="flex justify-end">
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
                 <Button
+                  variant="contained"
                   onClick={handleCreateOrg}
                   disabled={!orgData.name || createOrgMutation.isPending}
+                  endIcon={<ArrowRight size={16} />}
                 >
                   Continuar
-                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-              </div>
-            </div>
+              </Box>
+            </Box>
           )}
 
           {/* Step 2: Create First Contract */}
           {step === 2 && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                  <FileText className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    height: 40,
+                    width: 40,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: "50%",
+                    bgcolor: "#1d2b48",
+                    color: "white",
+                  }}
+                >
+                  <FileText size={20} />
+                </Box>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
                     Crie seu Primeiro Contrato
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
                     Opcional - você pode pular e adicionar depois
-                  </p>
-                </div>
-              </div>
+                  </Typography>
+                </Box>
+              </Box>
 
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="title">Título do Contrato</Label>
-                  <Input
-                    id="title"
-                    placeholder="Ex: Contrato de Marketing Digital"
-                    value={contractData.title}
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                <TextField
+                  fullWidth
+                  label="Título do Contrato"
+                  placeholder="Ex: Contrato de Marketing Digital"
+                  value={contractData.title}
+                  onChange={(e) =>
+                    setContractData({
+                      ...contractData,
+                      title: e.target.value,
+                    })
+                  }
+                />
+
+                <TextField
+                  fullWidth
+                  label="Fornecedor / Cliente"
+                  placeholder="Nome da empresa"
+                  value={contractData.counterpartyName}
+                  onChange={(e) =>
+                    setContractData({
+                      ...contractData,
+                      counterpartyName: e.target.value,
+                    })
+                  }
+                />
+
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                  <TextField
+                    fullWidth
+                    label="Data de Início"
+                    type="date"
+                    value={contractData.startDate}
                     onChange={(e) =>
                       setContractData({
                         ...contractData,
-                        title: e.target.value,
+                        startDate: e.target.value,
                       })
                     }
+                    InputLabelProps={{ shrink: true }}
                   />
-                </div>
 
-                <div>
-                  <Label htmlFor="supplier">Fornecedor / Cliente</Label>
-                  <Input
-                    id="supplier"
-                    placeholder="Nome da empresa"
-                    value={contractData.counterpartyName}
+                  <TextField
+                    fullWidth
+                    label="Valor"
+                    type="number"
+                    placeholder="0.00"
+                    value={contractData.valueAmount}
                     onChange={(e) =>
                       setContractData({
                         ...contractData,
-                        counterpartyName: e.target.value,
+                        valueAmount: e.target.value,
                       })
                     }
+                    inputProps={{ step: "0.01" }}
                   />
-                </div>
+                </Box>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="startDate">Data de Início</Label>
-                    <Input
-                      id="startDate"
-                      type="date"
-                      value={contractData.startDate}
-                      onChange={(e) =>
-                        setContractData({
-                          ...contractData,
-                          startDate: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="value">Valor</Label>
-                    <Input
-                      id="value"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={contractData.valueAmount}
-                      onChange={(e) =>
-                        setContractData({
-                          ...contractData,
-                          valueAmount: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="periodicity">Periodicidade</Label>
+                <FormControl fullWidth>
+                  <InputLabel>Periodicidade</InputLabel>
                   <Select
-                    id="periodicity"
                     value={contractData.periodicity}
                     onChange={(e) =>
                       setContractData({
@@ -309,198 +351,221 @@ export default function OnboardingPage() {
                         periodicity: e.target.value as any,
                       })
                     }
+                    label="Periodicidade"
                   >
-                    <option value="MONTHLY">Mensal</option>
-                    <option value="YEARLY">Anual</option>
+                    <MenuItem value="MONTHLY">Mensal</MenuItem>
+                    <MenuItem value="YEARLY">Anual</MenuItem>
                   </Select>
-                </div>
-              </div>
+                </FormControl>
+              </Box>
 
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(3)}>
+              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                <Button variant="outlined" onClick={() => setStep(3)}>
                   Pular
                 </Button>
                 <Button
+                  variant="contained"
                   onClick={handleCreateContract}
                   disabled={createContractMutation.isPending}
+                  endIcon={<ArrowRight size={16} />}
                 >
                   Continuar
-                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-              </div>
-            </div>
+              </Box>
+            </Box>
           )}
 
           {/* Step 3: Alert Settings */}
           {step === 3 && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                  <Bell className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    height: 40,
+                    width: 40,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: "50%",
+                    bgcolor: "#1d2b48",
+                    color: "white",
+                  }}
+                >
+                  <Bell size={20} />
+                </Box>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
                     Configure os Alertas
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
                     Seja notificado antes dos contratos vencerem
-                  </p>
-                </div>
-              </div>
+                  </Typography>
+                </Box>
+              </Box>
 
-              <div className="space-y-4">
-                <Card className="bg-muted/50">
-                  <CardContent className="pt-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">90 dias antes</p>
-                          <p className="text-sm text-muted-foreground">
-                            Alerta antecipado
-                          </p>
-                        </div>
-                        <Button
-                          variant={
-                            alertSettings.alert90 ? "default" : "outline"
-                          }
-                          size="sm"
-                          onClick={() =>
-                            setAlertSettings({
-                              ...alertSettings,
-                              alert90: !alertSettings.alert90,
-                            })
-                          }
-                        >
-                          {alertSettings.alert90 ? "Ativado" : "Desativado"}
-                        </Button>
-                      </div>
+              <Card sx={{ bgcolor: "rgba(0, 0, 0, 0.02)" }}>
+                <CardContent sx={{ pt: 3 }}>
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <Box>
+                        <Typography sx={{ fontWeight: 500 }}>90 dias antes</Typography>
+                        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                          Alerta antecipado
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant={alertSettings.alert90 ? "contained" : "outlined"}
+                        size="small"
+                        onClick={() =>
+                          setAlertSettings({
+                            ...alertSettings,
+                            alert90: !alertSettings.alert90,
+                          })
+                        }
+                      >
+                        {alertSettings.alert90 ? "Ativado" : "Desativado"}
+                      </Button>
+                    </Box>
 
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">60 dias antes</p>
-                          <p className="text-sm text-muted-foreground">
-                            Planejamento médio prazo
-                          </p>
-                        </div>
-                        <Button
-                          variant={
-                            alertSettings.alert60 ? "default" : "outline"
-                          }
-                          size="sm"
-                          onClick={() =>
-                            setAlertSettings({
-                              ...alertSettings,
-                              alert60: !alertSettings.alert60,
-                            })
-                          }
-                        >
-                          {alertSettings.alert60 ? "Ativado" : "Desativado"}
-                        </Button>
-                      </div>
+                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <Box>
+                        <Typography sx={{ fontWeight: 500 }}>60 dias antes</Typography>
+                        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                          Planejamento médio prazo
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant={alertSettings.alert60 ? "contained" : "outlined"}
+                        size="small"
+                        onClick={() =>
+                          setAlertSettings({
+                            ...alertSettings,
+                            alert60: !alertSettings.alert60,
+                          })
+                        }
+                      >
+                        {alertSettings.alert60 ? "Ativado" : "Desativado"}
+                      </Button>
+                    </Box>
 
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">30 dias antes</p>
-                          <p className="text-sm text-muted-foreground">
-                            Alerta final
-                          </p>
-                        </div>
-                        <Button
-                          variant={
-                            alertSettings.alert30 ? "default" : "outline"
-                          }
-                          size="sm"
-                          onClick={() =>
-                            setAlertSettings({
-                              ...alertSettings,
-                              alert30: !alertSettings.alert30,
-                            })
-                          }
-                        >
-                          {alertSettings.alert30 ? "Ativado" : "Desativado"}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <Box>
+                        <Typography sx={{ fontWeight: 500 }}>30 dias antes</Typography>
+                        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                          Alerta final
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant={alertSettings.alert30 ? "contained" : "outlined"}
+                        size="small"
+                        onClick={() =>
+                          setAlertSettings({
+                            ...alertSettings,
+                            alert30: !alertSettings.alert30,
+                          })
+                        }
+                      >
+                        {alertSettings.alert30 ? "Ativado" : "Desativado"}
+                      </Button>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
 
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(2)}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
+              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => setStep(2)}
+                  startIcon={<ArrowLeft size={16} />}
+                >
                   Voltar
                 </Button>
-                <Button onClick={() => setStep(4)}>
+                <Button
+                  variant="contained"
+                  onClick={() => setStep(4)}
+                  endIcon={<ArrowRight size={16} />}
+                >
                   Continuar
-                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Invite Team */}
+              </Box>
+            </Box>
+          )}          {/* Step 4: Invite Team */}
           {step === 4 && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                  <Users className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">Convide sua Equipe</h3>
-                  <p className="text-sm text-muted-foreground">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    height: 40,
+                    width: 40,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: "50%",
+                    bgcolor: "#1d2b48",
+                    color: "white",
+                  }}
+                >
+                  <Users size={20} />
+                </Box>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    Convide sua Equipe
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
                     Opcional - você pode adicionar membros depois
-                  </p>
-                </div>
-              </div>
+                  </Typography>
+                </Box>
+              </Box>
 
-              <div className="space-y-4">
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
                 {inviteEmails.map((email, index) => (
-                  <div key={index}>
-                    <Label htmlFor={`email-${index}`}>
-                      Email do Membro {index + 1}
-                    </Label>
-                    <Input
-                      id={`email-${index}`}
-                      type="email"
-                      placeholder="colega@empresa.com"
-                      value={email}
-                      onChange={(e) => {
-                        const newEmails = [...inviteEmails];
-                        newEmails[index] = e.target.value;
-                        setInviteEmails(newEmails);
-                      }}
-                    />
-                  </div>
+                  <TextField
+                    key={index}
+                    fullWidth
+                    type="email"
+                    label={`Email do Membro ${index + 1}`}
+                    placeholder="colega@empresa.com"
+                    value={email}
+                    onChange={(e) => {
+                      const newEmails = [...inviteEmails];
+                      newEmails[index] = e.target.value;
+                      setInviteEmails(newEmails);
+                    }}
+                  />
                 ))}
 
                 <Button
-                  variant="outline"
+                  variant="outlined"
                   onClick={() => setInviteEmails([...inviteEmails, ""])}
-                  className="w-full"
+                  fullWidth
                 >
                   + Adicionar Outro Email
                 </Button>
-              </div>
+              </Box>
 
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(3)}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
+              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => setStep(3)}
+                  startIcon={<ArrowLeft size={16} />}
+                >
                   Voltar
                 </Button>
                 <Button
+                  variant="contained"
                   onClick={handleFinish}
                   disabled={inviteUserMutation.isPending}
+                  startIcon={<Check size={16} />}
                 >
-                  <Check className="mr-2 h-4 w-4" />
                   {inviteUserMutation.isPending
                     ? "Finalizando..."
                     : "Finalizar"}
                 </Button>
-              </div>
-            </div>
+              </Box>
+            </Box>
           )}
         </CardContent>
       </Card>
-    </div>
+    </Box>
   );
 }

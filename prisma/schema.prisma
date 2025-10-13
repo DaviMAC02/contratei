@@ -94,16 +94,17 @@ enum OrgPlan {
 }
 
 model Org {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
-  slug      String   @unique
+  slug      String    @unique
   country   String // ISO country code (e.g., "BR", "US")
-  timezone  String   @default("UTC")
-  locale    String   @default("en-US") // "pt-BR" or "en-US"
-  currency  String   @default("USD") // "BRL" or "USD"
-  plan      OrgPlan  @default(FREE)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  timezone  String    @default("UTC")
+  locale    String    @default("en-US") // "pt-BR" or "en-US"
+  currency  String    @default("USD") // "BRL" or "USD"
+  plan      OrgPlan   @default(FREE)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete timestamp
 
   // Plan limits (defaults match FREE plan: 3 contracts, 1 user)
   maxContracts Int @default(3)
@@ -127,6 +128,7 @@ model Org {
   @@index([slug])
   @@index([stripeCustomerId])
   @@index([stripeSubscriptionId])
+  @@index([deletedAt])
 }
 
 model OrgMember {

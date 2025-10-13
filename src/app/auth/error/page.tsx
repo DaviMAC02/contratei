@@ -2,8 +2,14 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  Button,
+  Typography,
+  Box,
+  Alert,
+} from "@mui/material";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -38,48 +44,86 @@ function AuthErrorContent() {
   console.log("❌ Erro de autenticação:", error);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-            <AlertCircle className="h-6 w-6" />
-          </div>
-          <CardTitle className="text-2xl">{errorInfo.title}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-center text-muted-foreground">
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
+        p: 2,
+      }}
+    >
+      <Card sx={{ maxWidth: 480, width: "100%" }}>
+        <CardContent sx={{ p: 4, textAlign: "center" }}>
+          <Box
+            sx={{
+              mx: "auto",
+              mb: 3,
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              bgcolor: "#fee2e2",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <AlertCircle style={{ width: 28, height: 28, color: "#dc2626" }} />
+          </Box>
+
+          <Typography variant="h4" sx={{ fontWeight: 600, mb: 2 }}>
+            {errorInfo.title}
+          </Typography>
+
+          <Typography variant="body1" sx={{ color: "text.secondary", mb: 3 }}>
             {errorInfo.description}
-          </p>
+          </Typography>
 
           {error === "Verification" && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
-              <p className="font-semibold mb-2">💡 Dica:</p>
-              <ul className="list-disc list-inside space-y-1">
+            <Alert severity="info" sx={{ mb: 3, textAlign: "left" }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                💡 Dica:
+              </Typography>
+              <Box component="ul" sx={{ pl: 2, mb: 0 }}>
                 <li>Cada link só pode ser usado uma vez</li>
                 <li>Links expiram em 24 horas</li>
                 <li>Solicite um novo link se necessário</li>
-              </ul>
-            </div>
+              </Box>
+            </Alert>
           )}
 
-          <div className="flex flex-col gap-2 mt-6">
-            <Link href="/auth/signin">
-              <Button className="w-full" size="lg">
-                <ArrowLeft className="mr-2 h-4 w-4" />
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 4 }}>
+            <Link href="/auth/signin" style={{ textDecoration: "none" }}>
+              <Button
+                fullWidth
+                variant="contained"
+                size="large"
+                startIcon={<ArrowLeft size={18} />}
+                sx={{
+                  bgcolor: "#1d2b48",
+                  "&:hover": { bgcolor: "#141f35" },
+                  textTransform: "none",
+                  py: 1.5,
+                }}
+              >
                 Voltar para Login
               </Button>
             </Link>
 
             {error === "Verification" && (
-              <p className="text-center text-sm text-muted-foreground mt-4">
+              <Typography
+                variant="body2"
+                sx={{ color: "text.secondary", mt: 2 }}
+              >
                 Ao voltar para o login, digite seu email novamente para receber
                 um novo link.
-              </p>
+              </Typography>
             )}
-          </div>
+          </Box>
         </CardContent>
       </Card>
-    </div>
+    </Box>
   );
 }
 
