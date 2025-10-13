@@ -4,6 +4,7 @@ import { orgRouter } from "./routers/org";
 import { billingRouter } from "./routers/billing";
 import { fileRouter } from "./routers/file";
 import { authRouter } from "./routers/auth";
+import { supportRouter } from "./routers/support";
 import { prisma } from "@/lib/prisma";
 import type { Session } from "next-auth";
 
@@ -13,6 +14,7 @@ export const appRouter = createTRPCRouter({
   org: orgRouter,
   billing: billingRouter,
   file: fileRouter,
+  support: supportRouter,
 });
 
 export type AppRouter = typeof appRouter;
