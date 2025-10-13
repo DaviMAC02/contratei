@@ -97,10 +97,10 @@ model Org {
   id        String    @id @default(cuid())
   name      String
   slug      String    @unique
-  country   String // ISO country code (e.g., "BR", "US")
+  country   String // ISO country code (e.g., "BR", "PT")
   timezone  String    @default("UTC")
-  locale    String    @default("en-US") // "pt-BR" or "en-US"
-  currency  String    @default("USD") // "BRL" or "USD"
+  locale    String    @default("pt-BR") // "pt-BR" or "pt-PT"
+  currency  String    @default("BRL") // "BRL" or "EUR"
   plan      OrgPlan   @default(FREE)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

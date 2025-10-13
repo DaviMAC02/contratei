@@ -30,6 +30,7 @@ import {
   ArrowRight,
   ArrowLeft,
   Loader2,
+  CheckCircle,
 } from "lucide-react";
 
 export default function OnboardingPage() {
@@ -42,7 +43,7 @@ export default function OnboardingPage() {
 
   const [orgData, setOrgData] = useState({
     name: "",
-    country: "BR" as "BR" | "US",
+    country: "BR" as "BR" | "PT",
   });
   const [contractData, setContractData] = useState({
     title: "",
@@ -57,6 +58,8 @@ export default function OnboardingPage() {
     alert30: true,
   });
   const [inviteEmails, setInviteEmails] = useState([""]);
+  const [isFinishing, setIsFinishing] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const orgsQuery = trpc.org.list.useQuery(undefined, {
     enabled: !!session,
@@ -111,15 +114,27 @@ export default function OnboardingPage() {
   const handleFinish = async () => {
     if (!currentOrgId) return;
 
-    // Send invites
-    for (const email of inviteEmails.filter(Boolean)) {
-      await inviteUserMutation.mutateAsync({
-        orgId: currentOrgId,
-        email,
-        role: "VIEWER",
-      });
-    }
+    setIsFinishing(true);
 
+    try {
+      // Send invites
+      for (const email of inviteEmails.filter(Boolean)) {
+        await inviteUserMutation.mutateAsync({
+          orgId: currentOrgId,
+          email,
+          role: "VIEWER",
+        });
+      }
+
+      // Show success state
+      setShowSuccess(true);
+    } catch (error) {
+      console.error("Error finishing onboarding:", error);
+      setIsFinishing(false);
+    }
+  };
+
+  const handleGoToDashboard = () => {
     router.push("/dashboard");
   };
 
@@ -149,6 +164,116 @@ export default function OnboardingPage() {
             Carregando...
           </Typography>
         </Box>
+      </Box>
+    );
+  }
+
+  // Success State
+  if (showSuccess) {
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
+          p: 2,
+        }}
+      >
+        <Card sx={{ maxWidth: 600, width: "100%" }}>
+          <CardContent sx={{ p: 6 }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 3,
+                textAlign: "center",
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  height: 80,
+                  width: 80,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "50%",
+                  bgcolor: "#10b981",
+                  color: "white",
+                  animation: "scaleIn 0.5s ease-out",
+                  "@keyframes scaleIn": {
+                    "0%": {
+                      transform: "scale(0)",
+                      opacity: 0,
+                    },
+                    "50%": {
+                      transform: "scale(1.1)",
+                    },
+                    "100%": {
+                      transform: "scale(1)",
+                      opacity: 1,
+                    },
+                  },
+                }}
+              >
+                <CheckCircle size={48} />
+              </Box>
+
+              <Box>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 600,
+                    mb: 1,
+                    color: "#1d2b48",
+                  }}
+                >
+                  Tudo pronto!
+                </Typography>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: "text.secondary",
+                    mb: 2,
+                  }}
+                >
+                  Sua conta foi configurada com sucesso
+                </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: "text.secondary",
+                    maxWidth: 400,
+                    mx: "auto",
+                  }}
+                >
+                  Agora você pode acessar o dashboard e começar a gerenciar seus
+                  contratos!
+                </Typography>
+              </Box>
+
+              <Button
+                variant="contained"
+                size="large"
+                onClick={handleGoToDashboard}
+                endIcon={<ArrowRight size={20} />}
+                sx={{
+                  mt: 2,
+                  px: 4,
+                  py: 1.5,
+                  bgcolor: "#1d2b48",
+                  "&:hover": {
+                    bgcolor: "#152038",
+                  },
+                }}
+              >
+                Ir para o Dashboard
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
       </Box>
     );
   }
@@ -245,15 +370,13 @@ export default function OnboardingPage() {
                     onChange={(e) =>
                       setOrgData({
                         ...orgData,
-                        country: e.target.value as "BR" | "US",
+                        country: e.target.value as "BR" | "PT",
                       })
                     }
                     label="País / Região *"
                   >
-                    <MenuItem value="BR">🇧🇷 Brasil (BRL - Português)</MenuItem>
-                    <MenuItem value="US">
-                      🇺🇸 Estados Unidos (USD - English)
-                    </MenuItem>
+                    <MenuItem value="BR">Brasil (BRL - Português)</MenuItem>
+                    <MenuItem value="PT">Portugal (EUR - Português)</MenuItem>
                   </Select>
                   <FormHelperText>
                     Define a moeda e idioma da sua organização
@@ -619,18 +742,23 @@ export default function OnboardingPage() {
                   variant="outlined"
                   onClick={() => setStep(3)}
                   startIcon={<ArrowLeft size={16} />}
+                  disabled={isFinishing}
                 >
                   Voltar
                 </Button>
                 <Button
                   variant="contained"
                   onClick={handleFinish}
-                  disabled={inviteUserMutation.isPending}
-                  startIcon={<Check size={16} />}
+                  disabled={isFinishing}
+                  startIcon={
+                    isFinishing ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      <Check size={16} />
+                    )
+                  }
                 >
-                  {inviteUserMutation.isPending
-                    ? "Finalizando..."
-                    : "Finalizar"}
+                  {isFinishing ? "Finalizando..." : "Finalizar"}
                 </Button>
               </Box>
             </Box>
