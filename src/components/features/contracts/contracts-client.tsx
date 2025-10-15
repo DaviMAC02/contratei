@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import {
+  useState,
+  useTransition,
+  useRef,
+  useEffect,
+  useMemo,
+  useCallback,
+  Suspense,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card as MuiCard,
@@ -18,6 +26,10 @@ import {
   TableRow,
   Tabs,
   Tab,
+  CircularProgress,
+  Backdrop,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { useTranslation } from "@/lib/use-translation";
@@ -28,7 +40,7 @@ import {
 } from "@/lib/utils";
 import { Plus, Download } from "lucide-react";
 import Link from "next/link";
-import { DebouncedInput } from "@/components/shared/debounced-input";
+import { DebouncedInput, Pagination } from "@/components/shared";
 
 const StatsCard = styled(MuiCard)(({ theme }) => ({
   position: "relative",
@@ -44,32 +56,36 @@ const StatsCard = styled(MuiCard)(({ theme }) => ({
   },
 }));
 
+interface Contract {
+  id: string;
+  title: string;
+  status: string;
+  contractType: string;
+  counterpartyName: string;
+  owner: { name: string | null } | null;
+  nextRenewalDate: string | Date | null;
+  valueAmount: number;
+  currency: string;
+  [key: string]: any;
+}
+
+interface Org {
+  id: string;
+  name: string;
+  currency: string;
+  locale: string;
+  [key: string]: any;
+}
+
 interface ContractsClientProps {
-  initialContracts: Array<{
-    id: string;
-    title: string;
-    status: string;
-    contractType: string;
-    counterpartyName: string;
-    owner: { name: string | null };
-    nextRenewalDate: Date | null;
-    valueAmount: number;
-    currency: string;
-    [key: string]: any;
-  }>;
+  initialContracts: Contract[];
   initialNextCursor?: string;
-  org: {
-    id: string;
-    name: string;
-    currency: string;
-    locale: string;
-    [key: string]: any;
-  };
+  org: Org;
   initialSearch?: string;
   initialStatus?: string;
 }
 
-export default function ContractsClient({
+function ContractsClientInner({
   initialContracts,
   initialNextCursor,
   org,
@@ -81,120 +97,247 @@ export default function ContractsClient({
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
-  const [search, setSearch] = useState(initialSearch);
-  const [statusFilter, setStatusFilter] = useState<string>(initialStatus);
+  // --- Stable value for search params string to avoid effects running on new object identity every render
+  const searchParamsString = useMemo(
+    () => searchParams?.toString() ?? "",
+    [searchParams]
+  );
+
+  // Page from URL; URL is source of truth
+  const currentPage = useMemo(
+    () => parseInt(searchParams?.get("page") || "1", 10),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [searchParamsString] // only re-evaluate when the serialized params change
+  );
+
+  // Local editable filter state (debounced input will update URL)
+  const [search, setSearch] = useState(
+    () => searchParams?.get("search") || initialSearch || ""
+  );
+  const [statusFilter, setStatusFilter] = useState(
+    () => searchParams?.get("status") || initialStatus || ""
+  );
+
+  // Snackbar state for error messages
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Keep a ref for pagination cursors so we don't trigger rerenders by updating arrays
+  const cursorsRef = useRef<(string | undefined)[]>([undefined]);
+
+  // initial data (server-provided) - keep as stable references
+  const contracts = useMemo(() => initialContracts || [], [initialContracts]);
+  const nextCursor = initialNextCursor;
+
+  // Sync local inputs when URL changes (e.g., back/forward navigation)
+  useEffect(() => {
+    const urlSearch = searchParams?.get("search") || "";
+    const urlStatus = searchParams?.get("status") || "";
+
+    // Only set if different to avoid re-render loops
+    setSearch((prev) => (prev === urlSearch ? prev : urlSearch));
+    setStatusFilter((prev) => (prev === urlStatus ? prev : urlStatus));
+  }, [searchParamsString, searchParams]);
+
+  // Maintain cursorsRef when the URL cursor/page change
+  useEffect(() => {
+    const urlCursor = searchParams?.get("cursor") ?? undefined;
+    const urlPage = currentPage;
+
+    if (urlCursor && urlPage > 1) {
+      // Ensure we have capacity
+      if (cursorsRef.current.length < urlPage) {
+        cursorsRef.current.length = urlPage; // expand with undefined slots
+      }
+      if (cursorsRef.current[urlPage - 1] !== urlCursor) {
+        cursorsRef.current[urlPage - 1] = urlCursor;
+      }
+    }
+
+    if (urlPage === 1 && !urlCursor) {
+      cursorsRef.current = [undefined];
+    }
+  }, [searchParamsString, currentPage, searchParams]);
+
+  // Filter contracts by tab
   const [contractTypeTab, setContractTypeTab] = useState<
     "OUTBOUND" | "INBOUND" | "ALL"
   >("ALL");
 
-  // Use initial data from server
-  const contracts = initialContracts;
-  const nextCursor = initialNextCursor;
+  const filteredContracts = useMemo(() => {
+    if (contractTypeTab === "ALL") return contracts;
+    return contracts.filter((c) => c.contractType === contractTypeTab);
+  }, [contracts, contractTypeTab]);
 
-  // Filter contracts by type based on active tab (client-side only for tabs)
-  const filteredContracts =
-    contractTypeTab === "ALL"
-      ? contracts
-      : contracts.filter((c: any) => c.contractType === contractTypeTab);
+  const hasNextPage = useMemo(() => !!nextCursor, [nextCursor]);
 
-  // Update URL with new search params
-  const updateFilters = (newSearch?: string, newStatus?: string) => {
-    const params = new URLSearchParams(searchParams.toString());
+  // replace your existing updateFilters with this
+  const updateFilters = useCallback(
+    (newSearch?: string, newStatus?: string) => {
+      // read current params fresh from searchParams to compare
+      const currentParams = new URLSearchParams(searchParams?.toString() ?? "");
+      const currentSearch = currentParams.get("search") || "";
+      const currentStatus = currentParams.get("status") || "";
 
-    if (newSearch !== undefined) {
-      if (newSearch) {
-        params.set("search", newSearch);
-      } else {
-        params.delete("search");
+      // Decide whether filters are actually changing
+      const searchChanged =
+        newSearch !== undefined && newSearch !== currentSearch;
+      const statusChanged =
+        newStatus !== undefined && newStatus !== currentStatus;
+      const anyFilterChanged = searchChanged || statusChanged;
+
+      // Build next params starting from current (so we preserve unrelated params unless we intentionally remove)
+      const params = new URLSearchParams(currentParams.toString());
+
+      if (newSearch !== undefined) {
+        if (newSearch) params.set("search", newSearch);
+        else params.delete("search");
       }
-    }
 
-    if (newStatus !== undefined) {
-      if (newStatus) {
-        params.set("status", newStatus);
-      } else {
-        params.delete("status");
+      if (newStatus !== undefined) {
+        if (newStatus) params.set("status", newStatus);
+        else params.delete("status");
       }
-    }
 
-    // Reset to first page when filters change
-    params.delete("cursor");
-    params.delete("page");
+      // Only reset pagination when the filters actually changed.
+      if (anyFilterChanged) {
+        params.delete("cursor");
+        params.delete("page");
+      }
 
-    startTransition(() => {
-      router.push(`/contracts?${params.toString()}`);
-    });
-  };
+      const url = `/contracts?${params.toString()}`;
 
-  // Handle pagination
-  const handleNextPage = () => {
-    if (nextCursor) {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("cursor", nextCursor);
+      // Use replace for filter updates (keeps history tidy). If nothing changed, skip navigation.
+      const areParamsIdentical = currentParams.toString() === params.toString();
+      if (!areParamsIdentical) {
+        startTransition(() => {
+          router.replace(url);
+        });
+      }
+    },
+    [router, searchParams]
+  );
+  // Handlers
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearch(value);
+      // Reset cursor history when user starts a new search
+      cursorsRef.current = [undefined];
+      updateFilters(value, statusFilter);
+    },
+    [statusFilter, updateFilters]
+  );
 
+  const handleStatusFilterChange = useCallback(
+    (value: string) => {
+      setStatusFilter(value);
+      cursorsRef.current = [undefined];
+      updateFilters(search, value);
+    },
+    [search, updateFilters]
+  );
+
+  const handleTabChange = useCallback(
+    (value: "OUTBOUND" | "INBOUND" | "ALL") => {
+      setContractTypeTab(value);
+    },
+    []
+  );
+
+  const handlePageChange = useCallback(
+    (page: number) => {
+      const params = new URLSearchParams(searchParamsString);
+      params.set("page", page.toString());
+
+      // logic to determine cursor param
+      if (page === 1) {
+        params.delete("cursor");
+      } else if (page === currentPage + 1 && nextCursor) {
+        // going forward one page: use nextCursor
+        if (cursorsRef.current.length < page) {
+          cursorsRef.current[page - 1] = nextCursor;
+        } else if (!cursorsRef.current[page - 1]) {
+          cursorsRef.current[page - 1] = nextCursor;
+        }
+        params.set("cursor", nextCursor);
+      } else if (page === currentPage - 1) {
+        // previous page
+        if (page > 1 && cursorsRef.current[page - 1]) {
+          params.set("cursor", cursorsRef.current[page - 1]!);
+        } else {
+          params.delete("cursor");
+        }
+      } else if (cursorsRef.current[page - 1]) {
+        // jumping to previously visited page
+        params.set("cursor", cursorsRef.current[page - 1]!);
+      } else {
+        // no known cursor -> clear it to let server decide (or you can warn)
+        params.delete("cursor");
+      }
+
+      const newUrl = `/contracts?${params.toString()}`;
+      // For explicit page navigation we push so user can go back, wrapped in transition
       startTransition(() => {
-        router.push(`/contracts?${params.toString()}`);
+        router.push(newUrl, { scroll: false });
       });
+    },
+    [router, currentPage, nextCursor, searchParamsString]
+  );
+
+  const exportCSV = useCallback(() => {
+    try {
+      const headers = [
+        "Tipo",
+        "Título",
+        "Contraparte",
+        "Responsável",
+        "Valor",
+        "Status",
+        "Próxima Renovação",
+      ];
+      const rows = filteredContracts.map((c) => {
+        const tipo =
+          c.contractType === "INBOUND"
+            ? "Prestando Serviço"
+            : "Contratando Serviço";
+        const ownerName = c.owner?.name || "";
+        const value =
+          typeof c.valueAmount === "number"
+            ? c.valueAmount.toString()
+            : `${c.valueAmount ?? ""}`;
+        const nextRenewal = c.nextRenewalDate
+          ? new Date(c.nextRenewalDate).toLocaleDateString()
+          : "";
+        return [
+          tipo,
+          c.title,
+          c.counterpartyName,
+          ownerName,
+          value,
+          c.status,
+          nextRenewal,
+        ];
+      });
+
+      const csv = [headers, ...rows]
+        .map((row) =>
+          row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+        )
+        .join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `contratos-${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // release memory
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("CSV export error:", err);
+      setErrorMessage("Falha ao exportar CSV. Por favor, tente novamente.");
     }
-  };
-
-  const handlePreviousPage = () => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("cursor");
-
-    startTransition(() => {
-      router.push(`/contracts?${params.toString()}`);
-    });
-  };
-
-  // Reset pagination when filters change
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
-    updateFilters(value, statusFilter);
-  };
-
-  const handleStatusFilterChange = (value: string) => {
-    setStatusFilter(value);
-    updateFilters(search, value);
-  };
-
-  const handleTabChange = (value: "OUTBOUND" | "INBOUND" | "ALL") => {
-    setContractTypeTab(value);
-  };
-
-  const hasNextPage = !!nextCursor;
-  const hasPreviousPage = !!searchParams.get("cursor");
-
-  const exportCSV = () => {
-    const headers = [
-      "Tipo",
-      "Título",
-      "Contraparte",
-      "Responsável",
-      "Valor",
-      "Status",
-      "Próxima Renovação",
-    ];
-    const rows = filteredContracts.map((c: any) => [
-      c.contractType === "INBOUND"
-        ? "Prestando Serviço"
-        : "Contratando Serviço",
-      c.title,
-      c.counterpartyName,
-      c.owner.name || "",
-      c.valueAmount.toString(),
-      c.status,
-      c.nextRenewalDate ? new Date(c.nextRenewalDate).toLocaleDateString() : "",
-    ]);
-
-    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `contratos-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-  };
+  }, [filteredContracts]);
 
   return (
     <div className="p-4 md:p-6 lg:p-8 bg-gray-50/50 min-h-screen">
@@ -233,7 +376,7 @@ export default function ContractsClient({
         </div>
       </Box>
 
-      {/* Tabs for Contract Type */}
+      {/* Tabs */}
       <Box className="mb-6">
         <Tabs
           value={contractTypeTab}
@@ -247,27 +390,21 @@ export default function ContractsClient({
           <Tab
             label={`Todos (${contracts.length})`}
             value="ALL"
-            sx={{
-              "&.Mui-selected": { color: "#1d2b48" },
-            }}
+            sx={{ "&.Mui-selected": { color: "#1d2b48" } }}
           />
           <Tab
             label={`Contratando (${
               contracts.filter((c) => c.contractType === "OUTBOUND").length
             })`}
             value="OUTBOUND"
-            sx={{
-              "&.Mui-selected": { color: "#1d2b48" },
-            }}
+            sx={{ "&.Mui-selected": { color: "#1d2b48" } }}
           />
           <Tab
             label={`Prestando (${
               contracts.filter((c) => c.contractType === "INBOUND").length
             })`}
             value="INBOUND"
-            sx={{
-              "&.Mui-selected": { color: "#1d2b48" },
-            }}
+            sx={{ "&.Mui-selected": { color: "#1d2b48" } }}
           />
         </Tabs>
       </Box>
@@ -297,13 +434,9 @@ export default function ContractsClient({
               size="medium"
               sx={{
                 width: { xs: "100%", sm: 192 },
-                "& .MuiOutlinedInput-root": {
-                  height: 42,
-                },
+                "& .MuiOutlinedInput-root": { height: 42 },
               }}
-              SelectProps={{
-                native: true,
-              }}
+              SelectProps={{ native: true }}
             >
               <option value="">Todos os status</option>
               <option value="ACTIVE">Ativo</option>
@@ -344,16 +477,40 @@ export default function ContractsClient({
         </Typography>
       </Box>
 
-      {/* Table - Desktop View */}
+      {/* Desktop Table */}
       <MuiCard
         sx={{
           borderRadius: 1,
           border: "1px solid #e5e7eb",
           boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
           overflow: "hidden",
+          position: "relative",
         }}
         className="hidden md:block"
       >
+        {/* Loading Overlay for Desktop Table */}
+        {isPending && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(255, 255, 255, 0.7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 10,
+            }}
+          >
+            <CircularProgress
+              sx={{
+                color: "#1d2b48",
+              }}
+            />
+          </Box>
+        )}
         <TableContainer>
           <Table
             sx={{
@@ -442,10 +599,12 @@ export default function ContractsClient({
                     <TableCell align="center">
                       {contract.counterpartyName}
                     </TableCell>
-                    <TableCell align="center">{contract.owner.name}</TableCell>
+                    <TableCell align="center">
+                      {contract.owner?.name ?? "-"}
+                    </TableCell>
                     <TableCell align="center">
                       {formatCurrency(
-                        Number(contract.valueAmount),
+                        Number(contract.valueAmount ?? 0),
                         contract.currency as any,
                         org?.locale
                       )}
@@ -459,23 +618,31 @@ export default function ContractsClient({
                         )}
                         size="small"
                         variant="outlined"
-                        color={
-                          contract.status === "ACTIVE"
-                            ? "success"
-                            : contract.status === "DUE_SOON"
-                            ? "warning"
-                            : "error"
-                        }
                         sx={{
                           fontWeight: 500,
                           fontSize: "0.75rem",
                           height: 22,
+                          borderColor:
+                            contract.status === "ACTIVE"
+                              ? "#10b981"
+                              : contract.status === "DUE_SOON"
+                              ? "#f59e0b"
+                              : "#ef4444",
+                          color:
+                            contract.status === "ACTIVE"
+                              ? "#10b981"
+                              : contract.status === "DUE_SOON"
+                              ? "#f59e0b"
+                              : "#ef4444",
                         }}
                       />
                     </TableCell>
                     <TableCell align="center">
                       {contract.nextRenewalDate
-                        ? formatDate(contract.nextRenewalDate, org?.locale)
+                        ? formatDate(
+                            new Date(contract.nextRenewalDate),
+                            org?.locale
+                          )
                         : "-"}
                     </TableCell>
                     <TableCell align="center">
@@ -486,13 +653,10 @@ export default function ContractsClient({
                           disableRipple
                           disableElevation
                           sx={{
-                            color: "#1d2b48",
+                            color: "#374151",
                             minWidth: "100px",
                             boxShadow: "none !important",
-                            "&:hover": {
-                              bgcolor: "transparent !important",
-                              boxShadow: "none !important",
-                            },
+                            "&:hover": { bgcolor: "#f9fafb" },
                             "&:active": {
                               bgcolor: "transparent !important",
                               boxShadow: "none !important",
@@ -516,7 +680,31 @@ export default function ContractsClient({
       </MuiCard>
 
       {/* Mobile Card View */}
-      <div className="md:hidden space-y-3">
+      <div className="md:hidden space-y-3" style={{ position: "relative" }}>
+        {/* Loading Overlay for Mobile Cards */}
+        {isPending && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(255, 255, 255, 0.7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 10,
+              minHeight: "200px",
+            }}
+          >
+            <CircularProgress
+              sx={{
+                color: "#1d2b48",
+              }}
+            />
+          </Box>
+        )}
         {filteredContracts.length === 0 ? (
           <MuiCard
             sx={{
@@ -577,17 +765,22 @@ export default function ContractsClient({
                     )}
                     size="small"
                     variant="outlined"
-                    color={
-                      contract.status === "ACTIVE"
-                        ? "success"
-                        : contract.status === "DUE_SOON"
-                        ? "warning"
-                        : "error"
-                    }
                     sx={{
                       fontWeight: 500,
                       fontSize: "0.75rem",
                       height: 22,
+                      borderColor:
+                        contract.status === "ACTIVE"
+                          ? "#10b981"
+                          : contract.status === "DUE_SOON"
+                          ? "#f59e0b"
+                          : "#ef4444",
+                      color:
+                        contract.status === "ACTIVE"
+                          ? "#10b981"
+                          : contract.status === "DUE_SOON"
+                          ? "#f59e0b"
+                          : "#ef4444",
                     }}
                   />
                 </div>
@@ -601,7 +794,7 @@ export default function ContractsClient({
                       Responsável
                     </Typography>
                     <Typography variant="body2" className="font-medium mt-1">
-                      {contract.owner.name}
+                      {contract.owner?.name ?? "-"}
                     </Typography>
                   </div>
                   <div>
@@ -613,7 +806,7 @@ export default function ContractsClient({
                     </Typography>
                     <Typography variant="body2" className="font-medium mt-1">
                       {formatCurrency(
-                        Number(contract.valueAmount),
+                        Number(contract.valueAmount ?? 0),
                         contract.currency as any,
                         org?.locale
                       )}
@@ -630,7 +823,10 @@ export default function ContractsClient({
                       Próxima Renovação
                     </Typography>
                     <Typography variant="body2" className="font-medium mt-1">
-                      {formatDate(contract.nextRenewalDate, org?.locale)}
+                      {formatDate(
+                        new Date(contract.nextRenewalDate),
+                        org?.locale
+                      )}
                     </Typography>
                   </div>
                 )}
@@ -641,11 +837,11 @@ export default function ContractsClient({
                     size="small"
                     fullWidth
                     sx={{
-                      borderColor: "#1d2b48",
-                      color: "#1d2b48",
+                      borderColor: "#e5e7eb",
+                      color: "#374151",
                       "&:hover": {
-                        bgcolor: "transparent",
-                        borderColor: "#1d2b48",
+                        bgcolor: "#f9fafb",
+                        borderColor: "#d1d5db",
                         cursor: "pointer",
                       },
                     }}
@@ -660,45 +856,45 @@ export default function ContractsClient({
       </div>
 
       {/* Pagination */}
-      {filteredContracts.length > 0 && (hasNextPage || hasPreviousPage) && (
-        <Box className="mt-6 flex justify-center gap-2">
-          <Button
-            onClick={handlePreviousPage}
-            disabled={!hasPreviousPage || isPending}
-            variant="outlined"
-            sx={{
-              borderColor: "#1d2b48",
-              color: "#1d2b48",
-              "&:hover": {
-                bgcolor: "#b3efe5",
-                borderColor: "rgba(0, 0, 0, 0.2)",
-              },
-              "&:disabled": {
-                borderColor: "#d1d5db",
-                color: "#9ca3af",
-              },
-            }}
-          >
-            Anterior
-          </Button>
-          <Button
-            onClick={handleNextPage}
-            disabled={!hasNextPage || isPending}
-            variant="contained"
-            sx={{
-              bgcolor: "#1d2b48",
-              "&:hover": {
-                bgcolor: "#2d3b58",
-              },
-              "&:disabled": {
-                bgcolor: "#d1d5db",
-              },
-            }}
-          >
-            Próxima
-          </Button>
-        </Box>
+      {filteredContracts.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          hasNextPage={hasNextPage}
+          onPageChange={handlePageChange}
+        />
       )}
+
+      {/* Error Snackbar */}
+      <Snackbar
+        open={!!errorMessage}
+        autoHideDuration={6000}
+        onClose={() => setErrorMessage(null)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setErrorMessage(null)}
+          severity="error"
+          sx={{
+            width: "100%",
+            bgcolor: "#ef4444",
+            color: "white",
+            fontSize: "1rem",
+            "& .MuiAlert-icon": {
+              color: "white",
+            },
+          }}
+        >
+          {errorMessage}
+        </Alert>
+      </Snackbar>
     </div>
+  );
+}
+
+export default function ContractsClient(props: ContractsClientProps) {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ContractsClientInner {...props} />
+    </Suspense>
   );
 }

@@ -18,6 +18,7 @@ import {
   Check,
   X,
   BarChart3,
+  Loader2,
 } from "lucide-react";
 import { useTranslation } from "@/lib/use-translation";
 import { trpc } from "@/lib/trpc-client";
@@ -37,6 +38,7 @@ import {
   Button,
   Menu,
   MenuItem,
+  CircularProgress,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 
@@ -98,6 +100,7 @@ export function Sidebar({
   const orgsQuery = trpc.org.list.useQuery();
   const queryClient = useQueryClient();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
 
   // Use session orgId if available, fallback to prop
   const currentOrgId = session?.selectedOrgId || propOrgId;
@@ -111,6 +114,11 @@ export function Sidebar({
     if (isOpen && onClose) {
       onClose();
     }
+  }, [pathname]);
+
+  // Clear navigating state when pathname changes
+  useEffect(() => {
+    setNavigatingTo(null);
   }, [pathname]);
 
   const handleOrgMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -224,13 +232,26 @@ export function Sidebar({
               const isActive =
                 currentPath === itemPath ||
                 currentPath.startsWith(itemPath + "/");
+              const isNavigating = navigatingTo === item.href;
               const Icon = item.icon;
 
               return (
                 <Link key={item.name} href={item.href} passHref legacyBehavior>
-                  <StyledListItemButton className={isActive ? "active" : ""}>
+                  <StyledListItemButton
+                    className={isActive ? "active" : ""}
+                    onClick={() => {
+                      if (!isActive) {
+                        setNavigatingTo(item.href);
+                      }
+                    }}
+                    disabled={isNavigating}
+                  >
                     <ListItemIcon sx={{ minWidth: 40 }}>
-                      <Icon className="h-5 w-5" />
+                      {isNavigating ? (
+                        <CircularProgress size={20} sx={{ color: "#1d2b48" }} />
+                      ) : (
+                        <Icon className="h-5 w-5" />
+                      )}
                     </ListItemIcon>
                     <ListItemText
                       primary={item.name}

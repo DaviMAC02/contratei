@@ -9,6 +9,7 @@ import {
   Typography,
   Box,
   Alert,
+  CircularProgress,
 } from "@mui/material";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -129,7 +130,21 @@ function AuthErrorContent() {
 
 export default function AuthErrorPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense
+      fallback={
+        <Box
+          sx={{
+            minHeight: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      }
+    >
       <AuthErrorContent />
     </Suspense>
   );

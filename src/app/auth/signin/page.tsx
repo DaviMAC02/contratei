@@ -264,7 +264,21 @@ function SignInForm() {
 
 export default function SignInPage() {
   return (
-    <Suspense fallback={<CircularProgress />}>
+    <Suspense
+      fallback={
+        <Box
+          sx={{
+            minHeight: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: "#f9fafb",
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      }
+    >
       <SignInForm />
     </Suspense>
   );

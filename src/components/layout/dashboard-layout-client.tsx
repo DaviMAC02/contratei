@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { IconButton } from "@mui/material";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -17,6 +18,17 @@ export default function DashboardLayoutClient({
   children,
 }: DashboardLayoutClientProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const pathname = usePathname();
+
+  // Trigger fade effect on route change
+  useEffect(() => {
+    setIsTransitioning(true);
+    const timeout = setTimeout(() => {
+      setIsTransitioning(false);
+    }, 150);
+    return () => clearTimeout(timeout);
+  }, [pathname]);
 
   return (
     <div className="flex h-screen">
@@ -37,7 +49,13 @@ export default function DashboardLayoutClient({
           </IconButton>
           <span className="ml-4 font-semibold text-lg truncate">{orgName}</span>
         </div>
-        <main className="flex-1 overflow-y-auto bg-background">{children}</main>
+        <main
+          className={`flex-1 overflow-y-auto bg-background transition-opacity duration-150 ${
+            isTransitioning ? "opacity-0" : "opacity-100"
+          }`}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

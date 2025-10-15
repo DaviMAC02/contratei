@@ -6,6 +6,8 @@ import { I18nProvider } from "@/lib/use-translation";
 import type { Locale } from "@/lib/i18n";
 import { DashboardLayoutClient } from "@/components/layout";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({
   children,
 }: {
