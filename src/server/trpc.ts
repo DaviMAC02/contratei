@@ -22,12 +22,49 @@ export async function createTRPCContext(opts?: FetchCreateContextFnOptions) {
 
 export type Context = Awaited<ReturnType<typeof createTRPCContext>>;
 
-// Initialize tRPC
+// Initialize tRPC with enhanced error handling
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
+    // Extract user-friendly error message
+    let message = shape.message;
+
+    // Format Zod validation errors
+    if (error.cause instanceof ZodError) {
+      const zodError = error.cause.flatten();
+      const firstError = Object.values(zodError.fieldErrors)[0]?.[0];
+      if (firstError) {
+        message = firstError;
+      }
+    }
+
+    // Enhance specific error codes with Portuguese messages
+    if (error.code === "UNAUTHORIZED") {
+      message = "Sua sessão expirou. Faça login novamente.";
+    } else if (error.code === "FORBIDDEN") {
+      // Keep custom message if provided, otherwise use default
+      if (message === "FORBIDDEN" || !message) {
+        message = "Você não tem permissão para realizar esta ação.";
+      }
+    } else if (error.code === "NOT_FOUND") {
+      if (message === "NOT_FOUND" || !message) {
+        message = "Recurso não encontrado.";
+      }
+    } else if (error.code === "INTERNAL_SERVER_ERROR") {
+      message = "Erro interno do servidor. Tente novamente mais tarde.";
+    } else if (error.code === "BAD_REQUEST") {
+      if (message === "BAD_REQUEST" || !message) {
+        message = "Dados inválidos. Verifique e tente novamente.";
+      }
+    } else if (error.code === "TIMEOUT") {
+      message = "A operação demorou muito. Tente novamente.";
+    } else if (error.code === "TOO_MANY_REQUESTS") {
+      message = "Muitas requisições. Aguarde um momento.";
+    }
+
     return {
       ...shape,
+      message,
       data: {
         ...shape.data,
         zodError:
@@ -44,7 +81,10 @@ export const publicProcedure = t.procedure;
 // Middleware to ensure user is authenticated
 const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
   if (!ctx.session?.user) {
-    throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Sua sessão expirou. Faça login novamente para continuar.",
+    });
   }
   return next({
     ctx: {
@@ -61,7 +101,10 @@ export const protectedProcedure = t.procedure.use(enforceUserIsAuthed);
 // and let the procedure's input schema handle orgId validation
 export const withOrg = t.middleware(async ({ ctx, next }) => {
   if (!ctx.session?.user) {
-    throw new TRPCError({ code: "UNAUTHORIZED" });
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Sua sessão expirou. Faça login novamente para continuar.",
+    });
   }
 
   // Pass through - orgId validation will happen in the procedure
@@ -111,9 +154,9 @@ export function checkRole(userRole: OrgRole, ...allowedRoles: OrgRole[]) {
   if (!allowedRoles.includes(userRole)) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: `This action requires one of the following roles: ${allowedRoles.join(
+      message: `Esta ação requer uma das seguintes permissões: ${allowedRoles.join(
         ", "
-      )}`,
+      )}. Entre em contato com um administrador.`,
     });
   }
 }
@@ -126,16 +169,16 @@ export function requireRole(...allowedRoles: OrgRole[]) {
     if (!userRole) {
       throw new TRPCError({
         code: "FORBIDDEN",
-        message: "Organization context required",
+        message: "Contexto de organização necessário.",
       });
     }
 
     if (!allowedRoles.includes(userRole)) {
       throw new TRPCError({
         code: "FORBIDDEN",
-        message: `This action requires one of the following roles: ${allowedRoles.join(
+        message: `Esta ação requer uma das seguintes permissões: ${allowedRoles.join(
           ", "
-        )}`,
+        )}. Entre em contato com um administrador.`,
       });
     }
 

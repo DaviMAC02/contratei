@@ -47,6 +47,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { PLANS } from "@/lib/stripe";
+import { useToast } from "@/components/providers/toast-provider";
+import { getErrorMessage } from "@/lib/error-handler";
 
 // Styled Card matching dashboard styles
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -76,6 +78,8 @@ export default function ContractDetailClient({
 }: ContractDetailClientProps) {
   const router = useRouter();
   const { t, locale } = useTranslation();
+  const toast = useToast();
+
   const [isRenewing, setIsRenewing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -100,10 +104,10 @@ export default function ContractDetailClient({
       setIsRenewing(true);
       try {
         await renewContract(contractId);
+        toast.showSuccess("Contrato renovado com sucesso!");
         router.refresh();
       } catch (error) {
-        console.error("Erro ao renovar contrato:", error);
-        setErrorToast("Erro ao renovar contrato. Por favor, tente novamente.");
+        toast.showError(error, "contract");
       } finally {
         setIsRenewing(false);
       }
@@ -119,11 +123,11 @@ export default function ContractDetailClient({
       setIsDeleting(true);
       try {
         await deleteContract(contractId);
+        toast.showSuccess("Contrato excluído com sucesso!");
         router.push("/contracts");
         router.refresh();
       } catch (error) {
-        console.error("Erro ao excluir contrato:", error);
-        setErrorToast("Erro ao excluir contrato. Por favor, tente novamente.");
+        toast.showError(error, "contract");
         setIsDeleting(false);
       }
     }
@@ -142,7 +146,7 @@ export default function ContractDetailClient({
     // Validate file size (max 10MB)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
-      setErrorToast("Arquivo muito grande. Tamanho máximo: 10MB");
+      toast.showError("Arquivo muito grande. Tamanho máximo: 10MB", "file");
       return;
     }
 
@@ -170,7 +174,7 @@ export default function ContractDetailClient({
         };
         setFiles((prevFiles) => [newFile, ...prevFiles]);
 
-        setSuccessToast("Arquivo enviado com sucesso!");
+        toast.showSuccess("Arquivo enviado com sucesso!");
 
         // Reset file input
         if (fileInputRef.current) {
@@ -178,17 +182,7 @@ export default function ContractDetailClient({
         }
       }
     } catch (error: any) {
-      console.error("Erro ao fazer upload:", error);
-
-      // Extract error message
-      let errorMessage = "Erro ao fazer upload do arquivo. Tente novamente.";
-      if (error?.message) {
-        errorMessage = error.message;
-      } else if (typeof error === "string") {
-        errorMessage = error;
-      }
-
-      setErrorToast(errorMessage);
+      toast.showError(error, "file");
     } finally {
       setIsUploading(false);
     }
@@ -219,10 +213,9 @@ export default function ContractDetailClient({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      setSuccessToast("Download concluído!");
+      toast.showSuccess("Download concluído!");
     } catch (error: any) {
-      console.error("Erro ao fazer download:", error);
-      setErrorToast(error.message || "Erro ao fazer download do arquivo.");
+      toast.showError(error, "file");
     } finally {
       setDownloadingFileId(null);
     }

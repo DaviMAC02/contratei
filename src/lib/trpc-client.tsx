@@ -24,6 +24,31 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
           queries: {
             staleTime: 5 * 1000,
             refetchOnWindowFocus: false,
+            retry: (failureCount, error: any) => {
+              // Don't retry on client errors (4xx)
+              if (
+                error?.data?.code === "UNAUTHORIZED" ||
+                error?.data?.code === "FORBIDDEN" ||
+                error?.data?.code === "NOT_FOUND" ||
+                error?.data?.code === "BAD_REQUEST"
+              ) {
+                return false;
+              }
+              // Retry up to 2 times on server errors (5xx) and network errors
+              return failureCount < 2;
+            },
+            retryDelay: (attemptIndex) => {
+              // Exponential backoff: 1s, 2s, 4s
+              return Math.min(1000 * 2 ** attemptIndex, 30000);
+            },
+          },
+          mutations: {
+            // Show user-friendly error toasts on mutation errors
+            onError: (error: any) => {
+              console.error("Mutation error:", error);
+              // Error will be handled by the component using the mutation
+            },
+            retry: false, // Don't retry mutations by default
           },
         },
       })

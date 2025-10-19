@@ -30,7 +30,7 @@ async function validateOrgMembership(
   if (!membership) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "You do not have access to this organization",
+      message: "Você não tem acesso a esta organização ou ela não existe.",
     });
   }
 
@@ -82,7 +82,7 @@ export const fileRouter = createTRPCRouter({
       if (!contract) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Contract not found",
+          message: "Contrato não encontrado ou você não tem acesso a ele.",
         });
       }
 

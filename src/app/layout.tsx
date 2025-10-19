@@ -6,6 +6,8 @@ import { Suspense } from "react";
 import { PostHogPageview } from "@/components/providers/posthog-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { NavigationProgress } from "@/components/providers/navigation-progress";
+import { ToastProvider } from "@/components/providers/toast-provider";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -24,11 +26,15 @@ export default function RootLayout({
       <body className={`${inter.className} ${inter.variable}`}>
         <ThemeProvider>
           <TRPCProvider>
-            <NavigationProgress />
-            <Suspense fallback={null}>
-              <PostHogPageview />
-            </Suspense>
-            {children}
+            <ToastProvider>
+              <ErrorBoundary>
+                <NavigationProgress />
+                <Suspense fallback={null}>
+                  <PostHogPageview />
+                </Suspense>
+                {children}
+              </ErrorBoundary>
+            </ToastProvider>
           </TRPCProvider>
         </ThemeProvider>
       </body>

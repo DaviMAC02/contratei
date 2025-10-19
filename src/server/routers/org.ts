@@ -34,7 +34,7 @@ async function validateOrgMembership(
   if (!membership) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "You do not have access to this organization",
+      message: "Você não tem acesso a esta organização ou ela não existe.",
     });
   }
 

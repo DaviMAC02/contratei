@@ -37,7 +37,7 @@ async function validateOrgMembership(
   if (!membership) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "You do not have access to this organization",
+      message: "Você não tem acesso a esta organização ou ela não existe.",
     });
   }
 
@@ -203,7 +203,7 @@ export const contractRouter = createTRPCRouter({
       if (!contract) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Contract not found",
+          message: "Contrato não encontrado ou você não tem acesso a ele.",
         });
       }
 
@@ -260,7 +260,7 @@ export const contractRouter = createTRPCRouter({
       if (contractCount >= org.maxContracts) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: `You have reached the maximum number of contracts (${org.maxContracts}) for your plan. Please upgrade.`,
+          message: `Você atingiu o limite de ${org.maxContracts} contratos do seu plano. Faça upgrade para criar mais contratos.`,
         });
       }
 
@@ -378,7 +378,10 @@ export const contractRouter = createTRPCRouter({
       });
 
       if (!existing) {
-        throw new TRPCError({ code: "NOT_FOUND" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Contrato não encontrado ou você não tem acesso a ele.",
+        });
       }
 
       const contract = await ctx.prisma.contract.update({
