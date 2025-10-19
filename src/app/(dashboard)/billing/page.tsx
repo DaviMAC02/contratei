@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { trpc } from "@/lib/trpc-client";
 import {
   Card as MuiCard,
@@ -12,22 +11,14 @@ import {
   Chip,
   ToggleButton,
   ToggleButtonGroup,
-  Skeleton,
-  Container,
   LinearProgress,
   Divider,
-  Paper,
-  Stack,
-  Avatar,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
-  Alert,
   CircularProgress,
-  Snackbar,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { useTranslation } from "@/lib/use-translation";
@@ -37,445 +28,221 @@ import {
   CreditCard,
   Users,
   FileText,
-  Zap,
   Crown,
-  Sparkles,
-  TrendingUp,
-  Shield,
-  Clock,
-  BarChart3,
-  Settings,
-  Download,
-  ChevronLeft,
-  ChevronRight,
   Send,
   X,
+  ArrowUpRight,
+  CheckCircle2,
 } from "lucide-react";
 import { useOrgSelection } from "@/hooks/use-org-selection";
 import { trackPlanChange } from "@/components/providers/posthog-provider";
 import { DashboardPageWrapper } from "@/components/layout/dashboard-page-wrapper";
+import { useToast } from "@/components/providers/toast-provider";
 
-// Styled components
-const HeroCard = styled(MuiCard)(({ theme }) => ({
-  position: "relative",
-  overflow: "hidden",
-  borderRadius: 24,
-  border: "none",
-  background: "linear-gradient(135deg, #1d2b48 0%, #2d3b58 100%)",
-  color: "#ffffff",
-  "&::before": {
-    content: '""',
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background:
-      "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.1) 0%, transparent 50%)",
-    pointerEvents: "none",
+// Styled components matching system design
+const StyledCard = styled(MuiCard)(({ theme }) => ({
+  borderRadius: 8,
+  border: "1px solid #e5e7eb",
+  boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+  transition: "all 0.2s ease",
+  backgroundColor: "#ffffff",
+  "&:hover": {
+    boxShadow: "0 4px 12px 0 rgba(0, 0, 0, 0.1)",
+    borderColor: "#d1d5db",
   },
 }));
 
 const PlanCard = styled(MuiCard, {
-  shouldForwardProp: (prop) => prop !== "featured",
-})<{ featured?: boolean }>(({ theme, featured }) => ({
-  position: "relative",
-  overflow: "hidden",
-  borderRadius: 20,
-  border: featured ? "3px solid #f59e0b" : "2px solid #e5e7eb",
-  background: featured
-    ? "linear-gradient(135deg, #fef3c7 0%, #fbbf24 0%, #f59e0b 100%)"
-    : "#ffffff",
-  color: featured ? "#000000" : "#000000",
-  transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-  cursor: "pointer",
-  minHeight: 580, // Increased height for consistency
-  height: "100%", // Ensure all cards have same height
-  display: "flex",
-  flexDirection: "column",
-  transform: "scale(1)", // Same scale for all cards
-  zIndex: featured ? 10 : 1,
-  "&:hover": {
-    transform: "translateY(-4px)",
+  shouldForwardProp: (prop) => prop !== "featured" && prop !== "current",
+})<{ featured?: boolean; current?: boolean }>(
+  ({ theme, featured, current }) => ({
+    borderRadius: 8,
+    border: featured
+      ? "2px solid #1d2b48"
+      : current
+      ? "2px solid #10b981"
+      : "1px solid #e5e7eb",
     boxShadow: featured
-      ? "0 12px 25px rgba(245, 158, 11, 0.25)"
-      : "0 12px 25px rgba(0, 0, 0, 0.1)",
-  },
-  "&::before": featured
-    ? {
-        content: '""',
-        position: "absolute",
-        top: -2,
-        left: -2,
-        right: -2,
-        bottom: -2,
-        background: "linear-gradient(45deg, #f59e0b, #fbbf24, #f59e0b)",
-        borderRadius: 22,
-        zIndex: -1,
-        animation: "pulse 2s infinite",
-      }
-    : {},
-  "@keyframes pulse": {
-    "0%, 100%": { opacity: 1 },
-    "50%": { opacity: 0.8 },
-  },
-}));
-
-const StatsCard = styled(MuiCard)(({ theme }) => ({
-  position: "relative",
-  overflow: "hidden",
-  borderRadius: 16,
-  border: "1px solid rgba(255, 255, 255, 0.1)",
-  background: "rgba(255, 255, 255, 0.05)",
-  backdropFilter: "blur(10px)",
-  color: "#ffffff",
-  transition: "all 0.3s ease",
-  "&:hover": {
-    background: "rgba(255, 255, 255, 0.1)",
-    transform: "translateY(-4px)",
-  },
-}));
-
-const FeatureIcon = styled(Avatar)(({ theme }) => ({
-  width: 56,
-  height: 56,
-  background: "linear-gradient(135deg, #1d2b48 0%, #2d3b58 100%)",
-  marginBottom: 16,
-  boxShadow: "0 8px 25px rgba(29, 43, 72, 0.3)",
-}));
-
-const CarouselContainer = styled(Box)(({ theme }) => ({
-  position: "relative",
-  overflow: "visible",
-  margin: "0 auto",
-  paddingLeft: 100, // Increased space for left button
-  paddingRight: 100, // Increased space for right button
-  paddingTop: 30, // Space for "Mais Popular" badge and hover effects
-  paddingBottom: 20, // Space for hover effects
-  [theme.breakpoints.down("lg")]: {
-    paddingLeft: 80,
-    paddingRight: 80,
-  },
-  [theme.breakpoints.down("md")]: {
-    paddingLeft: 60,
-    paddingRight: 60,
-  },
-  "& .carousel-inner": {
-    overflowX: "hidden",
-    overflowY: "visible",
-    borderRadius: 20,
+      ? "0 4px 20px 0 rgba(29, 43, 72, 0.15)"
+      : "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+    transition: "all 0.2s ease",
+    backgroundColor: "#ffffff",
     position: "relative",
-  },
-  "& .carousel-track": {
+    height: "100%",
     display: "flex",
-    transition: "transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-    gap: 20, // Increased gap for better spacing
-  },
-  "& .carousel-item": {
-    minWidth: "100%",
-    flexShrink: 0,
-    [theme.breakpoints.up("sm")]: {
-      minWidth: "calc(50% - 10px)",
+    flexDirection: "column",
+    "&:hover": {
+      boxShadow: "0 8px 24px 0 rgba(0, 0, 0, 0.12)",
+      transform: "translateY(-2px)",
     },
-    [theme.breakpoints.up("lg")]: {
-      minWidth: "calc(25% - 15px)", // Adjusted for better spacing
-    },
-  },
-}));
+  })
+);
 
-const CarouselButton = styled(IconButton)(({ theme }) => ({
-  position: "absolute",
-  top: "50%",
-  transform: "translateY(-50%)",
-  zIndex: 100,
-  backgroundColor: theme.palette.background.paper,
-  boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-  width: 56,
-  height: 56,
-  border: `2px solid ${theme.palette.divider}`,
-  "&:hover": {
-    backgroundColor: theme.palette.action.hover,
-    transform: "translateY(-50%) scale(1.05)",
-    boxShadow: "0 8px 30px rgba(0,0,0,0.2)",
-  },
-  "&:disabled": {
-    opacity: 0.3,
-    cursor: "not-allowed",
-  },
-  "&.prev": {
-    left: 10,
-  },
-  "&.next": {
-    right: 10,
-  },
-  [theme.breakpoints.down("lg")]: {
-    width: 48,
-    height: 48,
-    "&.prev": {
-      left: 5,
-    },
-    "&.next": {
-      right: 5,
-    },
-  },
-  [theme.breakpoints.down("md")]: {
-    width: 40,
-    height: 40,
-    "&.prev": {
-      left: 0,
-    },
-    "&.next": {
-      right: 0,
-    },
-  },
+const FeatureIconBox = styled(Box)(({ theme }) => ({
+  width: 44,
+  height: 44,
+  borderRadius: 12,
+  backgroundColor: "#e8f4f2",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
 }));
 
 export default function BillingPage() {
   return (
     <DashboardPageWrapper>
-      {({ orgId }) => <BillingContent orgId={orgId} />}
+      {({ orgId, org }) => <BillingContent orgId={orgId} org={org} />}
     </DashboardPageWrapper>
   );
 }
 
-function BillingContent({ orgId }: { orgId: string }) {
-  const { t, locale } = useTranslation();
-  const router = useRouter();
-  const { org } = useOrgSelection();
-  const [billingInterval, setBillingInterval] = useState<"month" | "year">(
-    "month"
+function BillingContent({ orgId, org }: { orgId: string; org: any }) {
+  const { showSuccess, showError } = useToast();
+
+  // State
+  const [billingPeriod, setBillingPeriod] = useState<"MONTHLY" | "YEARLY">(
+    "MONTHLY"
   );
-  // Support modal state
-  const [supportModalOpen, setSupportModalOpen] = useState(false);
-  const [supportForm, setSupportForm] = useState({
-    subject: "",
-    message: "",
-  });
-  const [supportSubmitted, setSupportSubmitted] = useState(false);
-  const [supportLoading, setSupportLoading] = useState(false);
-  const [errorToast, setErrorToast] = useState<string | null>(null);
+  const [supportDialogOpen, setSupportDialogOpen] = useState(false);
+  const [supportMessage, setSupportMessage] = useState("");
+  const [sendingSupport, setSendingSupport] = useState(false);
 
-  // Carousel state and functions
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const [isAutoplayPaused, setIsAutoplayPaused] = useState(false);
+  // Queries
+  const { data: subscription, isLoading: subscriptionLoading } =
+    trpc.billing.getSubscription.useQuery({ orgId });
 
-  const subscriptionQuery = trpc.billing.getSubscription.useQuery(
-    { orgId: orgId || "" },
-    { enabled: !!orgId }
+  const { data: plans, isLoading: plansLoading } =
+    trpc.billing.getPlans.useQuery({ orgId });
+
+  const { data: analytics, isLoading: analyticsLoading } =
+    trpc.billing.getAnalytics.useQuery({ orgId });
+
+  // Mutations
+  const createCheckoutMutation = trpc.billing.createCheckoutSession.useMutation(
+    {
+      onSuccess: (data) => {
+        if (data.url) {
+          window.location.href = data.url;
+        }
+      },
+      onError: (error: any) => {
+        showError(error.message);
+      },
+    }
   );
-  const plansQuery = trpc.billing.getPlans.useQuery(
-    { orgId: orgId || "" },
-    { enabled: !!orgId }
-  );
 
-  const checkoutMutation = trpc.billing.createCheckoutSession.useMutation({
-    onSuccess: (data) => {
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    },
-  });
-
-  const portalMutation = trpc.billing.createPortalSession.useMutation({
-    onSuccess: (data) => {
-      window.open(data.url, "_blank");
-    },
-  });
-
-  const supportMutation = trpc.support.sendMessage.useMutation({
+  const sendSupportMessage = trpc.support.sendMessage.useMutation({
     onSuccess: () => {
-      setSupportSubmitted(true);
-      setSupportLoading(false);
+      showSuccess("Mensagem enviada com sucesso!");
+      setSupportMessage("");
+      setSupportDialogOpen(false);
     },
-    onError: (error) => {
-      console.error("Erro ao enviar mensagem de suporte:", error);
-      setErrorToast("Erro ao enviar mensagem. Por favor, tente novamente.");
-      setSupportLoading(false);
+    onError: (error: any) => {
+      showError(error.message);
+    },
+    onSettled: () => {
+      setSendingSupport(false);
     },
   });
 
-  const handleUpgrade = async (plan: string, interval: string) => {
-    // Track plan change
-    if (org) {
-      trackPlanChange(org.plan, plan, orgId);
-    }
-
-    await checkoutMutation.mutateAsync({
+  const handleSelectPlan = (planId: string) => {
+    createCheckoutMutation.mutate({
       orgId,
-      plan: plan as any,
-      interval: interval as any,
+      plan: planId as any,
+      interval: billingPeriod === "MONTHLY" ? "monthly" : "yearly",
     });
   };
 
-  const handleManageSubscription = async () => {
-    await portalMutation.mutateAsync({ orgId });
-  };
-
-  const handleSupportSubmit = async () => {
-    setSupportLoading(true);
-    try {
-      await supportMutation.mutateAsync({
-        subject: supportForm.subject,
-        message: supportForm.message,
-      });
-    } catch (error) {
-      // Error is already handled in the mutation's onError callback
+  const handleManageSubscription = () => {
+    if (
+      subscription &&
+      "stripeCustomerId" in subscription &&
+      subscription.stripeCustomerId
+    ) {
+      window.open(`/api/stripe/portal?orgId=${orgId}`, "_blank");
     }
   };
 
-  const handleSupportModalClose = () => {
-    setSupportModalOpen(false);
-    setSupportSubmitted(false);
-    setSupportForm({ subject: "", message: "" });
-  };
-
-  const subscription = subscriptionQuery.data;
-  const plans = plansQuery.data || [];
-
-  // Carousel functions
-  const getVisibleSlides = () => {
-    if (typeof window === "undefined") return 1;
-    if (window.innerWidth >= 1024) return 4; // lg: show 4
-    if (window.innerWidth >= 640) return 2; // sm: show 2
-    return 1; // xs: show 1
-  };
-
-  const getMaxSlide = () => {
-    if (plans.length <= 1) return 0;
-    const visibleSlides = getVisibleSlides();
-    return Math.max(0, plans.length - visibleSlides);
-  };
-
-  const nextSlide = () => {
-    setCurrentSlide((prev) => {
-      const maxSlide = getMaxSlide();
-      return prev >= maxSlide ? 0 : prev + 1;
+  const handleSendSupport = () => {
+    if (!supportMessage.trim()) return;
+    setSendingSupport(true);
+    sendSupportMessage.mutate({
+      message: supportMessage,
+      subject: "Solicitação de plano personalizado",
     });
-    setIsAutoplayPaused(true);
-    setTimeout(() => setIsAutoplayPaused(false), 8000); // Resume autoplay after 8 seconds
   };
 
-  const prevSlide = () => {
-    setCurrentSlide((prev) => {
-      const maxSlide = getMaxSlide();
-      return prev <= 0 ? maxSlide : prev - 1;
-    });
-    setIsAutoplayPaused(true);
-    setTimeout(() => setIsAutoplayPaused(false), 8000); // Resume autoplay after 8 seconds
-  };
+  const isLoading = subscriptionLoading || plansLoading || analyticsLoading;
 
-  // Auto-adjust current slide when window resizes
-  useEffect(() => {
-    const handleResize = () => {
-      const maxSlide = getMaxSlide();
-      setCurrentSlide((prev) => Math.min(prev, maxSlide));
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [plans.length]);
-
-  // Autoplay carousel
-  useEffect(() => {
-    if (plans.length <= getVisibleSlides() || isAutoplayPaused) return; // Don't autoplay if all items are visible or paused
-
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => {
-        const maxSlide = getMaxSlide();
-        return prev >= maxSlide ? 0 : prev + 1;
-      });
-    }, 4000); // Change slide every 4 seconds
-
-    return () => clearInterval(interval);
-  }, [plans.length, isAutoplayPaused]);
-
-  if (subscriptionQuery.isLoading || plansQuery.isLoading) {
-    return (
-      <Box
-        sx={{
-          minHeight: "100vh",
-          bgcolor: "background.default",
-          py: 4,
-        }}
-      >
-        <Container maxWidth={false} sx={{ maxWidth: "2000px", mx: "auto" }}>
-          {/* Header Skeleton */}
-          <Box sx={{ textAlign: "center", mb: 8 }}>
-            <Skeleton
-              variant="text"
-              width={400}
-              height={60}
-              sx={{ mx: "auto", mb: 2, borderRadius: 2 }}
-            />
-            <Skeleton
-              variant="text"
-              width={600}
-              height={30}
-              sx={{ mx: "auto", borderRadius: 1 }}
-            />
-          </Box>
-
-          {/* Hero Card Skeleton */}
-          <HeroCard sx={{ mb: 8 }}>
-            <MuiCardContent sx={{ p: 6 }}>
+  return (
+    <>
+      <Box sx={{ p: { xs: 2, md: 3, lg: 4 } }}>
+        {/* Current Plan Overview */}
+        <Box sx={{ mb: 4 }}>
+          <StyledCard>
+            <MuiCardContent sx={{ p: { xs: 3, md: 4 } }}>
               <Box
                 sx={{
-                  display: "grid",
-                  gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
-                  gap: 4,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: 3,
                 }}
               >
-                {[1, 2, 3].map((i) => (
-                  <StatsCard key={i}>
-                    <MuiCardContent sx={{ p: 3, textAlign: "center" }}>
-                      <Skeleton
-                        variant="circular"
-                        width={56}
-                        height={56}
-                        sx={{ mx: "auto", mb: 2 }}
-                      />
-                      <Skeleton
-                        variant="text"
-                        width={100}
-                        height={24}
-                        sx={{ mx: "auto", mb: 1, borderRadius: 1 }}
-                      />
-                      <Skeleton
-                        variant="text"
-                        width={60}
-                        height={40}
-                        sx={{ mx: "auto", mb: 2, borderRadius: 1 }}
-                      />
-                      <Skeleton
-                        variant="rectangular"
-                        width="100%"
-                        height={8}
-                        sx={{ borderRadius: 1 }}
-                      />
-                    </MuiCardContent>
-                  </StatsCard>
-                ))}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <FeatureIconBox>
+                    <Crown size={24} color="#1d2b48" />
+                  </FeatureIconBox>
+                  <Box>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 600,
+                        color: "#1d2b48",
+                        mb: 0.5,
+                      }}
+                    >
+                      {org?.plan ?? "Free"}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#6b7280" }}>
+                      Plano atual da organização
+                    </Typography>
+                  </Box>
+                </Box>
+                {subscription &&
+                  "stripeCustomerId" in subscription &&
+                  subscription.stripeCustomerId && (
+                    <Button
+                      variant="outlined"
+                      startIcon={<CreditCard size={16} />}
+                      onClick={handleManageSubscription}
+                      sx={{
+                        borderColor: "#e5e7eb",
+                        color: "#1d2b48",
+                        "&:hover": {
+                          borderColor: "#1d2b48",
+                          backgroundColor: "#f9fafb",
+                        },
+                      }}
+                    >
+                      Gerenciar Assinatura
+                    </Button>
+                  )}
               </Box>
             </MuiCardContent>
-          </HeroCard>
+          </StyledCard>
+        </Box>
 
-          {/* Plans Skeleton */}
-          <Box sx={{ mb: 6 }}>
-            <Skeleton
-              variant="text"
-              width={300}
-              height={40}
-              sx={{ mx: "auto", mb: 4, borderRadius: 2 }}
-            />
-            <Box sx={{ display: "flex", justifyContent: "center", mb: 6 }}>
-              <Skeleton
-                variant="rectangular"
-                width={300}
-                height={50}
-                sx={{ borderRadius: 3 }}
-              />
-            </Box>
+        {/* Usage Statistics */}
+        {analytics && (
+          <Box sx={{ mb: 4 }}>
+            <Typography
+              variant="h6"
+              sx={{ fontWeight: 600, color: "#1d2b48", mb: 2 }}
+            >
+              Uso Atual
+            </Typography>
             <Box
               sx={{
                 display: "grid",
@@ -484,1269 +251,586 @@ function BillingContent({ orgId }: { orgId: string }) {
                   sm: "repeat(2, 1fr)",
                   lg: "repeat(4, 1fr)",
                 },
-                gap: 4,
+                gap: 3,
               }}
             >
-              {[1, 2, 3, 4].map((i) => (
-                <PlanCard key={i}>
-                  <MuiCardContent sx={{ p: 4, flexGrow: 1 }}>
-                    <Skeleton
-                      variant="text"
-                      width={120}
-                      height={32}
-                      sx={{ mb: 4, borderRadius: 1 }}
-                    />
-                    <Skeleton
-                      variant="text"
-                      width={150}
-                      height={48}
-                      sx={{ mb: 1, borderRadius: 1 }}
-                    />
-                    <Skeleton
-                      variant="text"
-                      width={80}
-                      height={24}
-                      sx={{ mb: 4, borderRadius: 1 }}
-                    />
-                    <Box
+              {/* Contracts Card */}
+              <StyledCard>
+                <MuiCardContent sx={{ p: 3 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      mb: 2,
+                    }}
+                  >
+                    <FeatureIconBox>
+                      <FileText size={20} color="#1d2b48" />
+                    </FeatureIconBox>
+                    <Chip
+                      label={`${analytics.contractPercentage}%`}
+                      size="small"
                       sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 2,
-                        mb: 6,
+                        backgroundColor: "#e8f4f2",
+                        color: "#1d2b48",
+                        fontWeight: 600,
                       }}
-                    >
-                      {[1, 2, 3, 4].map((j) => (
-                        <Box
-                          key={j}
-                          sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                        >
-                          <Skeleton variant="circular" width={24} height={24} />
-                          <Skeleton
-                            variant="text"
-                            width="100%"
-                            height={20}
-                            sx={{ borderRadius: 1 }}
-                          />
-                        </Box>
-                      ))}
-                    </Box>
-                    <Skeleton
-                      variant="rectangular"
-                      width="100%"
-                      height={48}
-                      sx={{ borderRadius: 3 }}
                     />
-                  </MuiCardContent>
-                </PlanCard>
-              ))}
-            </Box>
-          </Box>
-        </Container>
-      </Box>
-    );
-  }
-
-  return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        bgcolor: "background.default",
-        py: 6,
-      }}
-    >
-      <Container maxWidth={false} sx={{ maxWidth: "2000px", mx: "auto" }}>
-        {/* Hero Section */}
-        <Box sx={{ textAlign: "center", mb: 8 }}>
-          <Typography
-            variant="h2"
-            sx={{
-              fontWeight: 800,
-              color: "text.primary",
-              mb: 2,
-              textShadow: "0 2px 20px rgba(0,0,0,0.1)",
-            }}
-          >
-            Sua Assinatura
-          </Typography>
-          <Typography
-            variant="h5"
-            sx={{ color: "text.secondary", mb: 6, maxWidth: 600, mx: "auto" }}
-          >
-            Gerencie sua assinatura e potencialize seu negócio com os recursos
-            premium
-          </Typography>
-        </Box>
-
-        {/* Current Plan Hero Card */}
-        <HeroCard sx={{ mb: 8 }}>
-          <MuiCardContent sx={{ p: 6 }}>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
-                gap: 4,
-                mb: 6,
-              }}
-            >
-              {/* Contracts Stats */}
-              <StatsCard>
-                <MuiCardContent sx={{ p: 3, textAlign: "center" }}>
-                  <FeatureIcon>
-                    <FileText size={28} color="#ffffff" />
-                  </FeatureIcon>
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                  </Box>
+                  <Typography variant="body2" sx={{ color: "#6b7280", mb: 1 }}>
                     Contratos
                   </Typography>
-                  <Typography variant="h3" sx={{ fontWeight: 800, mb: 2 }}>
-                    0
+                  <Typography
+                    variant="h5"
+                    sx={{ fontWeight: 700, color: "#1d2b48", mb: 1 }}
+                  >
+                    {analytics.contractCount} / {analytics.contractLimit}
                   </Typography>
                   <LinearProgress
                     variant="determinate"
-                    value={0}
+                    value={analytics.contractPercentage}
                     sx={{
-                      height: 8,
-                      borderRadius: 4,
-                      bgcolor: "rgba(255, 255, 255, 0.2)",
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: "#e8f4f2",
                       "& .MuiLinearProgress-bar": {
-                        bgcolor: "#ffffff",
-                        borderRadius: 4,
+                        backgroundColor:
+                          analytics.contractPercentage > 80
+                            ? "#ef4444"
+                            : "#10b981",
+                        borderRadius: 3,
                       },
                     }}
                   />
-                  <Typography
-                    variant="caption"
+                </MuiCardContent>
+              </StyledCard>
+
+              {/* Users Card */}
+              <StyledCard>
+                <MuiCardContent sx={{ p: 3 }}>
+                  <Box
                     sx={{
-                      color: "rgba(255, 255, 255, 0.8)",
-                      mt: 1,
-                      display: "block",
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      mb: 2,
                     }}
                   >
-                    0 de{" "}
-                    {org?.maxContracts === 999999 ? "∞" : org?.maxContracts}
-                  </Typography>
-                </MuiCardContent>
-              </StatsCard>
-
-              {/* Users Stats */}
-              <StatsCard>
-                <MuiCardContent sx={{ p: 3, textAlign: "center" }}>
-                  <FeatureIcon>
-                    <Users size={28} color="#ffffff" />
-                  </FeatureIcon>
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                    Usuários
-                  </Typography>
-                  <Typography variant="h3" sx={{ fontWeight: 800, mb: 2 }}>
-                    0
-                  </Typography>
-                  <LinearProgress
-                    variant="determinate"
-                    value={0}
-                    sx={{
-                      height: 8,
-                      borderRadius: 4,
-                      bgcolor: "rgba(255, 255, 255, 0.2)",
-                      "& .MuiLinearProgress-bar": {
-                        bgcolor: "#ffffff",
-                        borderRadius: 4,
-                      },
-                    }}
-                  />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "rgba(255, 255, 255, 0.8)",
-                      mt: 1,
-                      display: "block",
-                    }}
-                  >
-                    0 de {org?.maxUsers === 999999 ? "∞" : org?.maxUsers}
-                  </Typography>
-                </MuiCardContent>
-              </StatsCard>
-
-              {/* Current Plan */}
-              <StatsCard>
-                <MuiCardContent sx={{ p: 3, textAlign: "center" }}>
-                  <FeatureIcon>
-                    <Crown size={28} color="#ffffff" />
-                  </FeatureIcon>
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                    Plano Atual
-                  </Typography>
-                  <Typography variant="h3" sx={{ fontWeight: 800, mb: 2 }}>
-                    {org?.plan || "Free"}
-                  </Typography>
-                  <Box sx={{ display: "flex", justifyContent: "center" }}>
+                    <FeatureIconBox>
+                      <Users size={20} color="#1d2b48" />
+                    </FeatureIconBox>
                     <Chip
-                      label={
-                        subscription?.cancelAtPeriodEnd ? "Cancelando" : "Ativo"
-                      }
+                      label={`${analytics.userPercentage}%`}
+                      size="small"
                       sx={{
-                        bgcolor: subscription?.cancelAtPeriodEnd
-                          ? "#ef4444"
-                          : "#10b981",
-                        color: "#ffffff",
-                        fontWeight: 700,
+                        backgroundColor: "#e8f4f2",
+                        color: "#1d2b48",
+                        fontWeight: 600,
                       }}
                     />
                   </Box>
-                </MuiCardContent>
-              </StatsCard>
-            </Box>
-
-            {/* Plan Details */}
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: 2,
-              }}
-            >
-              <Box>
-                <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
-                  Plano {org?.plan || "Free"}
-                </Typography>
-                <Stack direction="row" spacing={3}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <FileText size={20} />
-                    <Typography variant="body1">
-                      {org?.maxContracts && org.maxContracts >= 999999
-                        ? "Contratos ilimitados"
-                        : `${org?.maxContracts} contratos`}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Users size={20} />
-                    <Typography variant="body1">
-                      {org?.maxUsers && org.maxUsers >= 999999
-                        ? "Usuários ilimitados"
-                        : `${org?.maxUsers} usuários`}
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Box>
-
-              {subscription && (
-                <Button
-                  variant="contained"
-                  onClick={handleManageSubscription}
-                  disabled={portalMutation.isPending}
-                  startIcon={<CreditCard size={20} />}
-                  sx={{
-                    bgcolor: "#ffffff",
-                    color: "#1d2b48",
-                    fontWeight: 700,
-                    borderRadius: 4,
-                    px: 4,
-                    py: 2,
-                    fontSize: "1.1rem",
-                    boxShadow: "0 8px 25px rgba(0,0,0,0.2)",
-                    "&:hover": {
-                      bgcolor: "#f8fafc",
-                      transform: "translateY(-2px)",
-                      boxShadow: "0 12px 30px rgba(0,0,0,0.3)",
-                    },
-                    transition: "all 0.3s ease",
-                  }}
-                >
-                  Gerenciar Assinatura
-                </Button>
-              )}
-            </Box>
-          </MuiCardContent>
-        </HeroCard>
-
-        {/* Plans Section */}
-        <Box sx={{ mb: 8 }}>
-          <Box sx={{ textAlign: "center", mb: 6 }}>
-            <Typography
-              variant="h3"
-              sx={{
-                fontWeight: 800,
-                color: "text.primary",
-                mb: 2,
-              }}
-            >
-              Escolha Seu Plano
-            </Typography>
-            <Typography variant="h6" sx={{ color: "text.secondary", mb: 6 }}>
-              Planos que se adaptam ao crescimento do seu negócio
-            </Typography>
-
-            {/* Billing Interval Toggle */}
-            <ToggleButtonGroup
-              value={billingInterval}
-              exclusive
-              onChange={(_, value) => {
-                if (value !== null) {
-                  setBillingInterval(value);
-                }
-              }}
-              sx={{
-                bgcolor: "background.paper",
-                borderRadius: 4,
-                border: 1,
-                borderColor: "divider",
-                mb: 4,
-                "& .MuiToggleButton-root": {
-                  color: "text.secondary",
-                  border: "none",
-                  fontWeight: 700,
-                  px: 4,
-                  py: 2,
-                  borderRadius: 3,
-                  "&.Mui-selected": {
-                    bgcolor: "primary.main",
-                    color: "primary.contrastText",
-                    "&:hover": {
-                      bgcolor: "primary.dark",
-                    },
-                  },
-                  "&:hover": {
-                    bgcolor: "action.hover",
-                  },
-                },
-              }}
-            >
-              <ToggleButton value="month">Mensal</ToggleButton>
-              <ToggleButton value="year">
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  Anual
-                  <Chip
-                    label="Economize 17%"
-                    size="small"
+                  <Typography variant="body2" sx={{ color: "#6b7280", mb: 1 }}>
+                    Usuários
+                  </Typography>
+                  <Typography
+                    variant="h5"
+                    sx={{ fontWeight: 700, color: "#1d2b48", mb: 1 }}
+                  >
+                    {analytics.userCount} / {analytics.userLimit}
+                  </Typography>
+                  <LinearProgress
+                    variant="determinate"
+                    value={analytics.userPercentage}
                     sx={{
-                      bgcolor: "#10b981",
-                      color: "#fff",
-                      fontWeight: 700,
-                      fontSize: "0.7rem",
-                      height: 20,
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: "#e8f4f2",
+                      "& .MuiLinearProgress-bar": {
+                        backgroundColor:
+                          analytics.userPercentage > 80 ? "#ef4444" : "#10b981",
+                        borderRadius: 3,
+                      },
                     }}
                   />
-                </Box>
-              </ToggleButton>
-            </ToggleButtonGroup>
+                </MuiCardContent>
+              </StyledCard>
+
+              {/* Active Contracts Card */}
+              <StyledCard>
+                <MuiCardContent sx={{ p: 3 }}>
+                  <Box sx={{ mb: 2 }}>
+                    <FeatureIconBox>
+                      <CheckCircle2 size={20} color="#10b981" />
+                    </FeatureIconBox>
+                  </Box>
+                  <Typography variant="body2" sx={{ color: "#6b7280", mb: 1 }}>
+                    Contratos Ativos
+                  </Typography>
+                  <Typography
+                    variant="h5"
+                    sx={{ fontWeight: 700, color: "#1d2b48" }}
+                  >
+                    {analytics.activeContractsCount}
+                  </Typography>
+                </MuiCardContent>
+              </StyledCard>
+
+              {/* Current Plan Card */}
+              <StyledCard>
+                <MuiCardContent sx={{ p: 3 }}>
+                  <Box sx={{ mb: 2 }}>
+                    <FeatureIconBox>
+                      <Crown size={20} color="#1d2b48" />
+                    </FeatureIconBox>
+                  </Box>
+                  <Typography variant="body2" sx={{ color: "#6b7280", mb: 1 }}>
+                    Plano Atual
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    sx={{ fontWeight: 700, color: "#1d2b48" }}
+                  >
+                    {analytics.currentPlan}
+                  </Typography>
+                </MuiCardContent>
+              </StyledCard>
+            </Box>
           </Box>
+        )}
 
-          {/* Plans Carousel */}
-          <CarouselContainer
-            sx={{
-              maxWidth: "2000px", // Much larger container
-              mx: "auto",
-            }}
-          >
-            <Box className="carousel-inner" sx={{ position: "relative" }}>
-              <Box
-                className="carousel-track"
-                ref={carouselRef}
-                sx={{
-                  transform: `translateX(-${
-                    currentSlide * (100 / getVisibleSlides())
-                  }%)`,
-                }}
-              >
-                {plans.map((plan, index) => {
-                  const isPopularPlan =
-                    plan.name === "Pro" ||
-                    plan.id === "pro" ||
-                    plan.id === "growth";
-
-                  return (
-                    <Box key={plan.id} className="carousel-item">
-                      <PlanCard
-                        featured={isPopularPlan}
-                        sx={{
-                          ...(isPopularPlan && {
-                            border: "3px solid #f59e0b",
-                            background:
-                              "linear-gradient(135deg, #ffffff 0%, #fef3c7 100%)",
-                          }),
-                        }}
-                      >
-                        {isPopularPlan && (
-                          <Box
-                            sx={{
-                              position: "absolute",
-                              top: -6,
-                              left: "50%",
-                              transform: "translateX(-50%)",
-                              zIndex: 10,
-                            }}
-                          >
-                            <Chip
-                              label={
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 0.5,
-                                  }}
-                                >
-                                  <Sparkles size={16} />
-                                  MAIS POPULAR
-                                </Box>
-                              }
-                              sx={{
-                                bgcolor: "#f59e0b",
-                                color: "#ffffff",
-                                fontWeight: 800,
-                                fontSize: "0.8rem",
-                                px: 2,
-                                py: 0.5,
-                                boxShadow: "0 4px 15px rgba(245, 158, 11, 0.4)",
-                              }}
-                            />
-                          </Box>
-                        )}
-
-                        <MuiCardContent
-                          sx={{
-                            p: 4,
-                            flexGrow: 1,
-                            display: "flex",
-                            flexDirection: "column",
-                          }}
-                        >
-                          {/* Plan Header */}
-                          <Box sx={{ mb: 4 }}>
-                            <Typography
-                              variant="h5"
-                              sx={{
-                                fontWeight: 800,
-                                mb: 2,
-                                color: "#1d2b48",
-                              }}
-                            >
-                              {plan.name}
-                            </Typography>
-
-                            <Box
-                              sx={{
-                                display: "flex",
-                                alignItems: "baseline",
-                                gap: 1,
-                                mb: 2,
-                              }}
-                            >
-                              <Typography
-                                variant="h2"
-                                sx={{
-                                  fontWeight: 900,
-                                  color: "#1d2b48",
-                                }}
-                              >
-                                {formatCurrency(
-                                  billingInterval === "month"
-                                    ? plan.price.monthly
-                                    : plan.price.yearly,
-                                  org?.currency as any,
-                                  org?.locale
-                                )}
-                              </Typography>
-                              <Typography
-                                variant="h6"
-                                sx={{
-                                  color: "#64748b",
-                                  fontWeight: 600,
-                                }}
-                              >
-                                /{billingInterval === "month" ? "mês" : "ano"}
-                              </Typography>
-                            </Box>
-                          </Box>
-
-                          {/* Features */}
-                          <Box sx={{ flexGrow: 1, mb: 4 }}>
-                            <Box
-                              sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 3,
-                              }}
-                            >
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 2,
-                                }}
-                              >
-                                <Box
-                                  sx={{
-                                    width: 24,
-                                    height: 24,
-                                    borderRadius: "50%",
-                                    bgcolor: "#10b981",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                  }}
-                                >
-                                  <Check size={16} color="#ffffff" />
-                                </Box>
-                                <Typography
-                                  variant="body1"
-                                  sx={{
-                                    color: "#374151",
-                                    fontWeight: 600,
-                                  }}
-                                >
-                                  {plan.maxContracts >= 999999
-                                    ? "Contratos ilimitados"
-                                    : `Até ${plan.maxContracts} contratos`}
-                                </Typography>
-                              </Box>
-
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 2,
-                                }}
-                              >
-                                <Box
-                                  sx={{
-                                    width: 24,
-                                    height: 24,
-                                    borderRadius: "50%",
-                                    bgcolor: "#10b981",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                  }}
-                                >
-                                  <Check size={16} color="#ffffff" />
-                                </Box>
-                                <Typography
-                                  variant="body1"
-                                  sx={{
-                                    color: "#374151",
-                                    fontWeight: 600,
-                                  }}
-                                >
-                                  {plan.maxUsers >= 999999
-                                    ? "Usuários ilimitados"
-                                    : `Até ${plan.maxUsers} usuários`}
-                                </Typography>
-                              </Box>
-
-                              {(plan as any).features?.automaticAlerts && (
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 2,
-                                  }}
-                                >
-                                  <Box
-                                    sx={{
-                                      width: 24,
-                                      height: 24,
-                                      borderRadius: "50%",
-                                      bgcolor: "#10b981",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                    }}
-                                  >
-                                    <Check size={16} color="#ffffff" />
-                                  </Box>
-                                  <Typography
-                                    variant="body1"
-                                    sx={{
-                                      color: "#374151",
-                                      fontWeight: 600,
-                                    }}
-                                  >
-                                    Alertas automáticos
-                                  </Typography>
-                                </Box>
-                              )}
-
-                              {(plan as any).features?.automaticRenewal && (
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 2,
-                                  }}
-                                >
-                                  <Box
-                                    sx={{
-                                      width: 24,
-                                      height: 24,
-                                      borderRadius: "50%",
-                                      bgcolor: "#10b981",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                    }}
-                                  >
-                                    <Check size={16} color="#ffffff" />
-                                  </Box>
-                                  <Typography
-                                    variant="body1"
-                                    sx={{
-                                      color: "#374151",
-                                      fontWeight: 600,
-                                    }}
-                                  >
-                                    Renovação automática
-                                  </Typography>
-                                </Box>
-                              )}
-
-                              {(plan as any).features?.automaticAdjustments && (
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 2,
-                                  }}
-                                >
-                                  <Box
-                                    sx={{
-                                      width: 24,
-                                      height: 24,
-                                      borderRadius: "50%",
-                                      bgcolor: "#10b981",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                    }}
-                                  >
-                                    <Check size={16} color="#ffffff" />
-                                  </Box>
-                                  <Typography
-                                    variant="body1"
-                                    sx={{
-                                      color: "#374151",
-                                      fontWeight: 600,
-                                    }}
-                                  >
-                                    Reajustes automáticos
-                                  </Typography>
-                                </Box>
-                              )}
-
-                              {(plan as any).features?.fileUpload && (
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 2,
-                                  }}
-                                >
-                                  <Box
-                                    sx={{
-                                      width: 24,
-                                      height: 24,
-                                      borderRadius: "50%",
-                                      bgcolor: "#10b981",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                    }}
-                                  >
-                                    <Check size={16} color="#ffffff" />
-                                  </Box>
-                                  <Typography
-                                    variant="body1"
-                                    sx={{
-                                      color: "#374151",
-                                      fontWeight: 600,
-                                    }}
-                                  >
-                                    Upload de arquivos
-                                  </Typography>
-                                </Box>
-                              )}
-                            </Box>
-                          </Box>
-
-                          {/* CTA Button */}
-                          <Button
-                            fullWidth
-                            variant={
-                              plan.isCurrentPlan ? "outlined" : "contained"
-                            }
-                            disabled={
-                              plan.isCurrentPlan || checkoutMutation.isPending
-                            }
-                            onClick={() =>
-                              handleUpgrade(plan.id, billingInterval)
-                            }
-                            sx={{
-                              py: 2.5,
-                              borderRadius: 4,
-                              fontWeight: 800,
-                              fontSize: "1.1rem",
-                              textTransform: "none",
-                              bgcolor: plan.isCurrentPlan
-                                ? "transparent"
-                                : isPopularPlan
-                                ? "#f59e0b"
-                                : "#1d2b48",
-                              color: plan.isCurrentPlan ? "#1d2b48" : "#ffffff",
-                              borderColor: isPopularPlan
-                                ? "#f59e0b"
-                                : "#1d2b48",
-                              boxShadow: plan.isCurrentPlan
-                                ? "none"
-                                : isPopularPlan
-                                ? "0 8px 25px rgba(245, 158, 11, 0.4)"
-                                : "0 8px 25px rgba(29, 43, 72, 0.4)",
-                              "&:hover": {
-                                bgcolor: plan.isCurrentPlan
-                                  ? "rgba(29, 43, 72, 0.08)"
-                                  : isPopularPlan
-                                  ? "#e8890b"
-                                  : "#2d3b58",
-                                transform: "translateY(-1px)",
-                                boxShadow: plan.isCurrentPlan
-                                  ? "0 4px 12px rgba(29, 43, 72, 0.15)"
-                                  : isPopularPlan
-                                  ? "0 6px 20px rgba(245, 158, 11, 0.3)"
-                                  : "0 6px 20px rgba(29, 43, 72, 0.3)",
-                              },
-                              transition:
-                                "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                            }}
-                          >
-                            {plan.isCurrentPlan
-                              ? "✓ Plano Atual"
-                              : `Escolher ${plan.name}`}
-                          </Button>
-                        </MuiCardContent>
-                      </PlanCard>
-                    </Box>
-                  );
-                })}
-              </Box>
-            </Box>
-
-            {getMaxSlide() > 0 && (
-              <>
-                <CarouselButton
-                  className="prev"
-                  onClick={prevSlide}
-                  disabled={currentSlide === 0}
-                  sx={{
-                    opacity: currentSlide === 0 ? 0.5 : 1,
-                    cursor: currentSlide === 0 ? "not-allowed" : "pointer",
-                  }}
-                >
-                  <ChevronLeft />
-                </CarouselButton>
-                <CarouselButton
-                  className="next"
-                  onClick={nextSlide}
-                  disabled={currentSlide >= getMaxSlide()}
-                  sx={{
-                    opacity: currentSlide >= getMaxSlide() ? 0.5 : 1,
-                    cursor:
-                      currentSlide >= getMaxSlide() ? "not-allowed" : "pointer",
-                  }}
-                >
-                  <ChevronRight />
-                </CarouselButton>
-              </>
-            )}
-          </CarouselContainer>
-        </Box>
-
-        {/* FAQ Section */}
-        <Paper
+        {/* Billing Period Toggle */}
+        <Box
           sx={{
-            borderRadius: 4,
-            bgcolor: "background.paper",
-            border: 1,
-            borderColor: "divider",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mb: 3,
           }}
         >
-          <MuiCardContent sx={{ p: 6 }}>
-            <Typography
-              variant="h3"
-              sx={{
-                fontWeight: 800,
-                textAlign: "center",
-                color: "text.primary",
-                mb: 6,
-              }}
-            >
-              Perguntas Frequentes
-            </Typography>
-
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                gap: 6,
-              }}
-            >
-              <Box>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 2,
-                    mb: 3,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: "50%",
-                      bgcolor: "#1d2b48",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      mt: 0.5,
-                    }}
-                  >
-                    <Typography sx={{ color: "#fff", fontWeight: 800 }}>
-                      ?
-                    </Typography>
-                  </Box>
-                  <Box>
-                    <Typography
-                      variant="h6"
-                      sx={{ fontWeight: 700, color: "text.primary", mb: 2 }}
-                    >
-                      Posso cancelar a qualquer momento?
-                    </Typography>
-                    <Typography
-                      variant="body1"
-                      sx={{ color: "text.secondary", lineHeight: 1.7 }}
-                    >
-                      Sim! Você pode cancelar sua assinatura a qualquer momento
-                      através do portal de gerenciamento. Seu acesso continuará
-                      até o fim do período pago, sem taxas adicionais.
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-
-              <Box>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 2,
-                    mb: 3,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: "50%",
-                      bgcolor: "#1d2b48",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      mt: 0.5,
-                    }}
-                  >
-                    <Typography sx={{ color: "#fff", fontWeight: 800 }}>
-                      !
-                    </Typography>
-                  </Box>
-                  <Box>
-                    <Typography
-                      variant="h6"
-                      sx={{ fontWeight: 700, color: "text.primary", mb: 2 }}
-                    >
-                      O que acontece se eu exceder os limites?
-                    </Typography>
-                    <Typography
-                      variant="body1"
-                      sx={{ color: "text.secondary", lineHeight: 1.7 }}
-                    >
-                      Você será notificado com antecedência e poderá fazer
-                      upgrade do seu plano. Não há cobranças surpresa ou
-                      bloqueios súbitos.
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-
-              <Box>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 2,
-                    mb: 3,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: "50%",
-                      bgcolor: "#1d2b48",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      mt: 0.5,
-                    }}
-                  >
-                    <Settings size={16} color="#ffffff" />
-                  </Box>
-                  <Box>
-                    <Typography
-                      variant="h6"
-                      sx={{ fontWeight: 700, color: "text.primary", mb: 2 }}
-                    >
-                      Posso mudar de plano?
-                    </Typography>
-                    <Typography
-                      variant="body1"
-                      sx={{ color: "text.secondary", lineHeight: 1.7 }}
-                    >
-                      Sim! Você pode fazer upgrade ou downgrade do seu plano a
-                      qualquer momento. O valor será ajustado proporcionalmente
-                      ao período restante.
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-
-              <Box>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 2,
-                    mb: 3,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: "50%",
-                      bgcolor: "#10b981",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      mt: 0.5,
-                    }}
-                  >
-                    <Typography sx={{ color: "#fff", fontWeight: 800 }}>
-                      %
-                    </Typography>
-                  </Box>
-                  <Box>
-                    <Typography
-                      variant="h6"
-                      sx={{ fontWeight: 700, color: "text.primary", mb: 2 }}
-                    >
-                      Há desconto para pagamento anual?
-                    </Typography>
-                    <Typography
-                      variant="body1"
-                      sx={{ color: "text.secondary", lineHeight: 1.7 }}
-                    >
-                      Sim! Ao escolher o pagamento anual, você economiza 17% do
-                      valor total, equivalente a aproximadamente 2 meses grátis.
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-            </Box>
-
-            <Divider sx={{ my: 4 }} />
-
-            {/* Contact Section */}
-            <Box sx={{ textAlign: "center" }}>
-              <Typography
-                variant="h6"
-                sx={{ fontWeight: 700, color: "text.primary", mb: 2 }}
-              >
-                Ainda tem dúvidas?
-              </Typography>
-              <Typography
-                variant="body1"
-                sx={{ color: "text.secondary", mb: 4 }}
-              >
-                Nossa equipe está sempre pronta para ajudar você
-              </Typography>
-              <Button
-                variant="outlined"
-                startIcon={<Download size={20} />}
-                onClick={() => setSupportModalOpen(true)}
-                sx={{
-                  borderColor: "primary.main",
-                  color: "primary.main",
-                  fontWeight: 700,
-                  borderRadius: 3,
-                  px: 4,
-                  py: 1.5,
+          <Typography variant="h6" sx={{ fontWeight: 600, color: "#1d2b48" }}>
+            Planos Disponíveis
+          </Typography>
+          <ToggleButtonGroup
+            value={billingPeriod}
+            exclusive
+            onChange={(e, value) => value && setBillingPeriod(value)}
+            size="small"
+            sx={{
+              "& .MuiToggleButton-root": {
+                borderColor: "#e5e7eb",
+                color: "#6b7280",
+                "&.Mui-selected": {
+                  backgroundColor: "#1d2b48",
+                  color: "#ffffff",
                   "&:hover": {
-                    bgcolor: "primary.main",
-                    color: "primary.contrastText",
-                    transform: "translateY(-2px)",
-                    boxShadow: 3,
+                    backgroundColor: "#162238",
                   },
-                  transition: "all 0.3s ease",
-                }}
-              >
-                Falar com Suporte
-              </Button>
-            </Box>
-          </MuiCardContent>
-        </Paper>
-
-        {/* Support Modal */}
-        <Dialog
-          open={supportModalOpen}
-          onClose={handleSupportModalClose}
-          maxWidth="sm"
-          fullWidth
-          PaperProps={{
-            sx: {
-              borderRadius: 3,
-              p: 1,
-            },
-          }}
-        >
-          <DialogTitle
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              pb: 2,
-              pt: 4,
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <Avatar
-                sx={{
-                  bgcolor: "primary.main",
-                  width: 40,
-                  height: 40,
-                }}
-              >
-                <Send size={20} />
-              </Avatar>
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Falar com Suporte
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Nossa equipe responderá em até 24 horas
-                </Typography>
-              </Box>
-            </Box>
-            <IconButton
-              onClick={handleSupportModalClose}
-              size="small"
-              sx={{
-                color: "text.secondary",
-                "&:hover": { bgcolor: "action.hover" },
-              }}
-            >
-              <X size={20} />
-            </IconButton>
-          </DialogTitle>
-
-          <DialogContent sx={{ px: 3, py: 4 }}>
-            {supportSubmitted ? (
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 3,
-                  py: 4,
-                }}
-              >
-                <Avatar
-                  sx={{
-                    bgcolor: "success.main",
-                    width: 64,
-                    height: 64,
-                  }}
-                >
-                  <Check size={32} />
-                </Avatar>
-                <Box sx={{ textAlign: "center" }}>
-                  <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5 }}>
-                    Mensagem Enviada!
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    color="text.secondary"
-                    sx={{ mb: 1 }}
-                  >
-                    Recebemos sua solicitação de suporte e nossa equipe entrará
-                    em contato em breve.
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Você receberá uma resposta em até 24 horas no seu email
-                    cadastrado.
-                  </Typography>
-                </Box>
-              </Box>
-            ) : (
-              <Box
-                sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 1 }}
-              >
-                <TextField
-                  label="Assunto"
-                  fullWidth
-                  variant="outlined"
-                  value={supportForm.subject}
-                  onChange={(e) =>
-                    setSupportForm((prev) => ({
-                      ...prev,
-                      subject: e.target.value,
-                    }))
-                  }
-                  placeholder="Ex: Dúvida sobre planos, problema técnico..."
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: 2,
-                    },
-                    "& .MuiInputLabel-root": {
-                      backgroundColor: "background.paper",
-                      px: 1,
-                    },
-                  }}
-                />
-
-                <TextField
-                  label="Mensagem"
-                  fullWidth
-                  multiline
-                  rows={4}
-                  variant="outlined"
-                  value={supportForm.message}
-                  onChange={(e) =>
-                    setSupportForm((prev) => ({
-                      ...prev,
-                      message: e.target.value,
-                    }))
-                  }
-                  placeholder="Descreva sua dúvida ou problema em detalhes..."
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: 2,
-                    },
-                    "& .MuiInputLabel-root": {
-                      backgroundColor: "background.paper",
-                      px: 1,
-                    },
-                  }}
-                />
-
-                <Box
-                  sx={{
-                    bgcolor: "action.hover",
-                    borderRadius: 2,
-                    p: 2,
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ textAlign: "center" }}
-                  >
-                    <strong>Dica:</strong> Inclua o máximo de detalhes possível
-                    para que possamos ajudá-lo melhor
-                  </Typography>
-                </Box>
-              </Box>
-            )}
-          </DialogContent>
-
-          {!supportSubmitted && (
-            <DialogActions
-              sx={{
-                p: 3,
-                pt: 2,
-                gap: 2,
-                justifyContent: "center",
-              }}
-            >
-              <Button
-                onClick={handleSupportModalClose}
-                variant="outlined"
-                sx={{
-                  borderRadius: 2,
-                  px: 3,
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleSupportSubmit}
-                variant="contained"
-                disabled={
-                  !supportForm.subject.trim() ||
-                  !supportForm.message.trim() ||
-                  supportLoading
-                }
-                startIcon={
-                  supportLoading ? (
-                    <CircularProgress size={18} color="inherit" />
-                  ) : (
-                    <Send size={18} />
-                  )
-                }
-                sx={{
-                  borderRadius: 2,
-                  px: 3,
-                  fontWeight: 600,
-                }}
-              >
-                {supportLoading ? "Enviando..." : "Enviar Mensagem"}
-              </Button>
-            </DialogActions>
-          )}
-        </Dialog>
-
-        {/* Error Toast */}
-        <Snackbar
-          open={!!errorToast}
-          autoHideDuration={6000}
-          onClose={() => setErrorToast(null)}
-          anchorOrigin={{ vertical: "top", horizontal: "center" }}
-        >
-          <Alert
-            onClose={() => setErrorToast(null)}
-            severity="error"
-            sx={{
-              width: "100%",
-              bgcolor: "#ef4444",
-              color: "white",
-              fontSize: "1rem",
-              "& .MuiAlert-icon": {
-                color: "white",
+                },
               },
             }}
           >
-            {errorToast}
-          </Alert>
-        </Snackbar>
-      </Container>
-    </Box>
+            <ToggleButton value="MONTHLY">Mensal</ToggleButton>
+            <ToggleButton value="YEARLY">Anual</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+
+        {/* Plans Grid */}
+        {isLoading ? (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              py: 8,
+            }}
+          >
+            <CircularProgress sx={{ color: "#1d2b48" }} />
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "repeat(2, 1fr)",
+                lg: "repeat(3, 1fr)",
+              },
+              gap: 3,
+              mb: 4,
+            }}
+          >
+            {plans?.map((plan: any) => {
+              const isCurrent = org?.plan === plan.id;
+              const isFeatured = plan.name.toLowerCase().includes("pro");
+
+              return (
+                <PlanCard
+                  key={plan.id}
+                  featured={isFeatured}
+                  current={isCurrent}
+                >
+                  {isCurrent ? (
+                    <Chip
+                      label="Plano Atual"
+                      size="small"
+                      sx={{
+                        position: "absolute",
+                        top: 16,
+                        right: 16,
+                        backgroundColor: "#10b981",
+                        color: "#ffffff",
+                        fontWeight: 600,
+                      }}
+                    />
+                  ) : isFeatured ? (
+                    <Chip
+                      label="Mais Popular"
+                      size="small"
+                      sx={{
+                        position: "absolute",
+                        top: 16,
+                        right: 16,
+                        backgroundColor: "#1d2b48",
+                        color: "#ffffff",
+                        fontWeight: 600,
+                      }}
+                    />
+                  ) : null}
+
+                  <MuiCardContent
+                    sx={{
+                      p: 3,
+                      pt: isCurrent || isFeatured ? 7 : 3,
+                      flexGrow: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+                    <Typography
+                      variant="h5"
+                      sx={{
+                        fontWeight: 700,
+                        color: "#1d2b48",
+                        mb: 1,
+                      }}
+                    >
+                      {plan.name}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: "#6b7280", mb: 3, minHeight: 40 }}
+                    >
+                      Até{" "}
+                      {plan.maxContracts === 999999
+                        ? "contratos ilimitados"
+                        : `${plan.maxContracts} contratos`}
+                    </Typography>
+
+                    <Box sx={{ mb: 3 }}>
+                      <Box sx={{ display: "flex", alignItems: "baseline" }}>
+                        <Typography
+                          variant="h3"
+                          sx={{ fontWeight: 800, color: "#1d2b48" }}
+                        >
+                          {formatCurrency(
+                            plan.price[
+                              billingPeriod === "MONTHLY" ? "monthly" : "yearly"
+                            ]
+                          )}
+                        </Typography>
+                        <Typography
+                          variant="body1"
+                          sx={{ color: "#6b7280", ml: 1 }}
+                        >
+                          /{billingPeriod === "MONTHLY" ? "mês" : "ano"}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Divider sx={{ mb: 3 }} />
+
+                    {/* Features List */}
+                    <Box sx={{ mb: 3, flexGrow: 1 }}>
+                      <Typography
+                        variant="subtitle2"
+                        sx={{
+                          fontWeight: 600,
+                          color: "#1d2b48",
+                          mb: 2,
+                        }}
+                      >
+                        Recursos inclusos:
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 1.5,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1.5,
+                          }}
+                        >
+                          <Check size={18} color="#10b981" />
+                          <Typography variant="body2" sx={{ color: "#4b5563" }}>
+                            {plan.maxContracts === 999999
+                              ? "Contratos ilimitados"
+                              : `Até ${plan.maxContracts} contratos`}
+                          </Typography>
+                        </Box>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1.5,
+                          }}
+                        >
+                          <Check size={18} color="#10b981" />
+                          <Typography variant="body2" sx={{ color: "#4b5563" }}>
+                            {plan.maxUsers === 999999
+                              ? "Usuários ilimitados"
+                              : `Até ${plan.maxUsers} usuários`}
+                          </Typography>
+                        </Box>
+                        {plan.features.automaticAlerts && (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1.5,
+                            }}
+                          >
+                            <Check size={18} color="#10b981" />
+                            <Typography
+                              variant="body2"
+                              sx={{ color: "#4b5563" }}
+                            >
+                              Alertas automáticos
+                            </Typography>
+                          </Box>
+                        )}
+                        {plan.features.automaticRenewal && (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1.5,
+                            }}
+                          >
+                            <Check size={18} color="#10b981" />
+                            <Typography
+                              variant="body2"
+                              sx={{ color: "#4b5563" }}
+                            >
+                              Renovação automática
+                            </Typography>
+                          </Box>
+                        )}
+                        {plan.features.automaticAdjustments && (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1.5,
+                            }}
+                          >
+                            <Check size={18} color="#10b981" />
+                            <Typography
+                              variant="body2"
+                              sx={{ color: "#4b5563" }}
+                            >
+                              Ajustes automáticos
+                            </Typography>
+                          </Box>
+                        )}
+                        {plan.features.fileUpload && (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1.5,
+                            }}
+                          >
+                            <Check size={18} color="#10b981" />
+                            <Typography
+                              variant="body2"
+                              sx={{ color: "#4b5563" }}
+                            >
+                              Upload de arquivos
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </Box>
+
+                    {/* CTA Button */}
+                    <Button
+                      variant={isCurrent ? "outlined" : "contained"}
+                      fullWidth
+                      disabled={isCurrent || createCheckoutMutation.isPending}
+                      onClick={() => handleSelectPlan(plan.id)}
+                      endIcon={!isCurrent && <ArrowUpRight size={16} />}
+                      sx={{
+                        py: 1.5,
+                        borderRadius: 2,
+                        fontWeight: 600,
+                        ...(isCurrent
+                          ? {
+                              borderColor: "#10b981",
+                              color: "#10b981",
+                              "&:hover": {
+                                borderColor: "#059669",
+                                backgroundColor: "#f0fdf4",
+                              },
+                            }
+                          : {
+                              backgroundColor: "#1d2b48",
+                              color: "#ffffff",
+                              "&:hover": {
+                                backgroundColor: "#162238",
+                              },
+                            }),
+                      }}
+                    >
+                      {isCurrent
+                        ? "Plano Atual"
+                        : createCheckoutMutation.isPending
+                        ? "Processando..."
+                        : "Selecionar Plano"}
+                    </Button>
+                  </MuiCardContent>
+                </PlanCard>
+              );
+            })}
+          </Box>
+        )}
+
+        {/* Need Help Section */}
+        <StyledCard>
+          <MuiCardContent sx={{ p: 4 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 3,
+              }}
+            >
+              <Box>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 600, color: "#1d2b48", mb: 1 }}
+                >
+                  Precisa de um plano personalizado?
+                </Typography>
+                <Typography variant="body2" sx={{ color: "#6b7280" }}>
+                  Entre em contato conosco para discutir suas necessidades
+                  específicas
+                </Typography>
+              </Box>
+              <Button
+                variant="contained"
+                startIcon={<Send size={16} />}
+                onClick={() => setSupportDialogOpen(true)}
+                sx={{
+                  backgroundColor: "#1d2b48",
+                  "&:hover": {
+                    backgroundColor: "#162238",
+                  },
+                }}
+              >
+                Contatar Suporte
+              </Button>
+            </Box>
+          </MuiCardContent>
+        </StyledCard>
+      </Box>
+
+      {/* Support Dialog */}
+      <Dialog
+        open={supportDialogOpen}
+        onClose={() => setSupportDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Typography variant="h6" component="div" sx={{ color: "#1d2b48" }}>
+            Contatar Suporte
+          </Typography>
+          <Button
+            onClick={() => setSupportDialogOpen(false)}
+            sx={{ minWidth: "auto", color: "#6b7280" }}
+            disabled={sendingSupport}
+          >
+            <X size={20} />
+          </Button>
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            placeholder="Descreva sua necessidade..."
+            value={supportMessage}
+            onChange={(e) => setSupportMessage(e.target.value)}
+            disabled={sendingSupport}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "8px",
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button
+            onClick={() => setSupportDialogOpen(false)}
+            variant="outlined"
+            disabled={sendingSupport}
+            sx={{
+              borderColor: "#e5e7eb",
+              color: "#6b7280",
+              "&:hover": {
+                borderColor: "#d1d5db",
+                backgroundColor: "#f9fafb",
+              },
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSendSupport}
+            variant="contained"
+            disabled={sendingSupport || !supportMessage.trim()}
+            startIcon={
+              sendingSupport ? (
+                <CircularProgress size={16} sx={{ color: "#ffffff" }} />
+              ) : (
+                <Send size={16} />
+              )
+            }
+            sx={{
+              backgroundColor: "#1d2b48",
+              "&:hover": {
+                backgroundColor: "#162238",
+              },
+            }}
+          >
+            {sendingSupport ? "Enviando..." : "Enviar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }

@@ -326,4 +326,50 @@ export const billingRouter = createTRPCRouter({
 
       return { success: true };
     }),
+
+  // Get usage analytics for billing page
+  getAnalytics: orgProcedure
+    .input(z.object({ orgId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Validate org membership
+      const { org } = await validateOrgMembership(
+        ctx.prisma,
+        ctx.session!.user.id,
+        input.orgId
+      );
+
+      // Get counts
+      const [contractCount, userCount, activeContractsCount] =
+        await Promise.all([
+          ctx.prisma.contract.count({
+            where: { orgId: input.orgId },
+          }),
+          ctx.prisma.orgMember.count({
+            where: { orgId: input.orgId },
+          }),
+          ctx.prisma.contract.count({
+            where: {
+              orgId: input.orgId,
+              status: "ACTIVE",
+            },
+          }),
+        ]);
+
+      return {
+        contractCount,
+        contractLimit: org.maxContracts,
+        contractPercentage:
+          org.maxContracts === 999999
+            ? 0
+            : Math.round((contractCount / org.maxContracts) * 100),
+        userCount,
+        userLimit: org.maxUsers,
+        userPercentage:
+          org.maxUsers === 999999
+            ? 0
+            : Math.round((userCount / org.maxUsers) * 100),
+        activeContractsCount,
+        currentPlan: org.plan,
+      };
+    }),
 });
