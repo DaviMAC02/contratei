@@ -7,9 +7,6 @@ import {
   checkRole,
 } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { nanoid } from "nanoid";
-import crypto from "crypto";
 import { hasPlanFeature, type PlanName } from "@/lib/stripe";
 
 // Helper to validate org membership
@@ -211,16 +208,7 @@ export const fileRouter = createTRPCRouter({
         });
       }
 
-      // Delete from Supabase Storage
-      const { error } = await supabaseAdmin.storage
-        .from("contracts")
-        .remove([file.storagePath]);
-
-      if (error) {
-        console.error("Failed to delete file from storage:", error);
-      }
-
-      // Delete from database
+      // Delete from database (files are now stored directly in database)
       await ctx.prisma.contractFile.delete({
         where: { id: input.fileId },
       });

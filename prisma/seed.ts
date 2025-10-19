@@ -378,9 +378,10 @@ async function main() {
       contractId: contract1.id,
       orgId: orgBR.id,
       fileName: "contrato-marketing-assinado.pdf",
+      mimeType: "application/pdf",
       fileType: "MAIN",
       sizeBytes: 524288, // 512 KB
-      storagePath: "contracts/contract1/contrato-marketing-assinado.pdf",
+      fileContent: "", // Empty base64 content for seed data
       checksum: "abc123def456",
       uploadedBy: owner.id,
     },
@@ -391,9 +392,10 @@ async function main() {
       contractId: contract2.id,
       orgId: orgBR.id,
       fileName: "licenca-microsoft-365.pdf",
+      mimeType: "application/pdf",
       fileType: "MAIN",
       sizeBytes: 358400, // 350 KB
-      storagePath: "contracts/contract2/licenca-microsoft-365.pdf",
+      fileContent: "", // Empty base64 content for seed data
       checksum: "def456abc789",
       uploadedBy: admin.id,
     },
