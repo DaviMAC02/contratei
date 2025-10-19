@@ -45,8 +45,8 @@ async function validateOrgMembership(
 }
 
 export const fileRouter = createTRPCRouter({
-  // Get upload URL (presigned)
-  getUploadUrl: orgProcedure
+  // Upload file directly to database
+  uploadFile: orgProcedure
     .input(
       z.object({
         orgId: z.string(),
@@ -54,6 +54,9 @@ export const fileRouter = createTRPCRouter({
         fileName: z.string(),
         fileSize: z.number(),
         fileType: z.enum(["MAIN", "ATTACHMENT"]),
+        mimeType: z.string(),
+        fileContent: z.string(), // Base64 encoded file content
+        checksum: z.string(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -86,59 +89,15 @@ export const fileRouter = createTRPCRouter({
         });
       }
 
-      // Generate unique file path
-      const fileId = nanoid();
-      const extension = input.fileName.split(".").pop();
-      const storagePath = `${input.orgId}/${input.contractId}/${fileId}.${extension}`;
-
-      // Create presigned URL for upload
-      const { data, error } = await supabaseAdmin.storage
-        .from("contracts")
-        .createSignedUploadUrl(storagePath);
-
-      if (error) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create upload URL",
-        });
-      }
-
-      return {
-        uploadUrl: data.signedUrl,
-        storagePath,
-        token: data.token,
-      };
-    }),
-
-  // Confirm upload and create file record
-  confirmUpload: orgProcedure
-    .input(
-      z.object({
-        orgId: z.string(),
-        contractId: z.string(),
-        fileName: z.string(),
-        storagePath: z.string(),
-        fileSize: z.number(),
-        fileType: z.enum(["MAIN", "ATTACHMENT"]),
-        checksum: z.string(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      // Validate org membership and check role
-      const { userRole } = await validateOrgMembership(
-        ctx.prisma,
-        ctx.session!.user.id,
-        input.orgId
-      );
-      checkRole(userRole, "OWNER", "ADMIN", "MANAGER");
-
+      // Create file record with content in database
       const file = await ctx.prisma.contractFile.create({
         data: {
           contractId: input.contractId,
           orgId: input.orgId,
           fileName: input.fileName,
           fileType: input.fileType,
-          storagePath: input.storagePath,
+          mimeType: input.mimeType,
+          fileContent: input.fileContent,
           checksum: input.checksum,
           sizeBytes: input.fileSize,
           uploadedBy: ctx.session!.user.id,
@@ -157,7 +116,7 @@ export const fileRouter = createTRPCRouter({
       return file;
     }),
 
-  // List files for contract
+  // List files for contract (excluding file content for performance)
   listFiles: orgProcedure
     .input(
       z.object({
@@ -171,21 +130,31 @@ export const fileRouter = createTRPCRouter({
           contractId: input.contractId,
           orgId: input.orgId,
         },
+        select: {
+          id: true,
+          fileName: true,
+          fileType: true,
+          mimeType: true,
+          sizeBytes: true,
+          uploadedAt: true,
+          checksum: true,
+          // Exclude fileContent for performance
+        },
         orderBy: { uploadedAt: "desc" },
       });
 
       return files;
     }),
 
-  // Get download URL (presigned)
-  getDownloadUrl: orgProcedure
+  // Get file content for download
+  getFileContent: orgProcedure
     .input(
       z.object({
         orgId: z.string(),
         fileId: z.string(),
       })
     )
-    .mutation(async ({ ctx, input }) => {
+    .query(async ({ ctx, input }) => {
       const file = await ctx.prisma.contractFile.findUnique({
         where: { id: input.fileId },
       });
@@ -194,18 +163,6 @@ export const fileRouter = createTRPCRouter({
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "File not found",
-        });
-      }
-
-      // Create presigned URL for download
-      const { data, error } = await supabaseAdmin.storage
-        .from("contracts")
-        .createSignedUrl(file.storagePath, 3600); // 1 hour expiry
-
-      if (error) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create download URL",
         });
       }
 
@@ -220,8 +177,10 @@ export const fileRouter = createTRPCRouter({
       });
 
       return {
-        url: data.signedUrl,
         fileName: file.fileName,
+        mimeType: file.mimeType || "application/octet-stream",
+        fileContent: file.fileContent,
+        sizeBytes: file.sizeBytes,
       };
     }),
 

@@ -133,6 +133,25 @@ export const orgRouter = createTRPCRouter({
         name: z.string().min(1).max(100),
         country: z.string().length(2), // ISO country code
         timezone: z.string().optional(),
+        orgType: z.enum(["PF", "PJ"]).default("PF"),
+        // Identification
+        cpf: z.string().optional(),
+        legalName: z.string().optional(),
+        tradeName: z.string().optional(),
+        cnpj: z.string().optional(),
+        ie: z.string().optional(),
+        // Address
+        address: z
+          .object({
+            cep: z.string().optional(),
+            street: z.string().optional(),
+            number: z.string().optional(),
+            complement: z.string().optional(),
+            neighborhood: z.string().optional(),
+            city: z.string().optional(),
+            state: z.string().optional(),
+          })
+          .optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -158,6 +177,7 @@ export const orgRouter = createTRPCRouter({
         .replace(/[^a-z0-9]+/g, "-")}-${nanoid(6)}`;
 
       const org = await ctx.prisma.org.create({
+        // Cast to any to avoid type mismatch until Prisma types are regenerated
         data: {
           name: input.name,
           slug,
@@ -169,7 +189,22 @@ export const orgRouter = createTRPCRouter({
           maxContracts: 3,
           maxUsers: 1,
           trialEndsAt: addDays(new Date(), 14),
-        },
+          orgType: input.orgType,
+          // Identification
+          cpf: input.orgType === "PF" ? input.cpf : undefined,
+          legalName: input.orgType === "PJ" ? input.legalName : undefined,
+          tradeName: input.orgType === "PJ" ? input.tradeName : undefined,
+          cnpj: input.orgType === "PJ" ? input.cnpj : undefined,
+          ie: input.orgType === "PJ" ? input.ie : undefined,
+          // Address
+          addressCep: input.address?.cep,
+          addressStreet: input.address?.street,
+          addressNumber: input.address?.number,
+          addressComplement: input.address?.complement,
+          addressNeighborhood: input.address?.neighborhood,
+          addressCity: input.address?.city,
+          addressState: input.address?.state,
+        } as any,
       });
 
       // Add creator as owner
@@ -199,6 +234,23 @@ export const orgRouter = createTRPCRouter({
         orgId: z.string(),
         name: z.string().min(1).max(100).optional(),
         timezone: z.string().optional(),
+        orgType: z.enum(["PF", "PJ"]).optional(),
+        cpf: z.string().optional(),
+        legalName: z.string().optional(),
+        tradeName: z.string().optional(),
+        cnpj: z.string().optional(),
+        ie: z.string().optional(),
+        address: z
+          .object({
+            cep: z.string().optional(),
+            street: z.string().optional(),
+            number: z.string().optional(),
+            complement: z.string().optional(),
+            neighborhood: z.string().optional(),
+            city: z.string().optional(),
+            state: z.string().optional(),
+          })
+          .optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -210,7 +262,17 @@ export const orgRouter = createTRPCRouter({
       );
       checkRole(userRole, "OWNER", "ADMIN");
 
-      const { orgId, ...updateData } = input;
+      const { orgId, address, ...rest } = input as any;
+      const updateData: any = { ...rest };
+      if (address) {
+        updateData.addressCep = address.cep;
+        updateData.addressStreet = address.street;
+        updateData.addressNumber = address.number;
+        updateData.addressComplement = address.complement;
+        updateData.addressNeighborhood = address.neighborhood;
+        updateData.addressCity = address.city;
+        updateData.addressState = address.state;
+      }
 
       const org = await ctx.prisma.org.update({
         where: { id: orgId },

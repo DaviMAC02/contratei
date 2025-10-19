@@ -24,10 +24,8 @@ export function Pagination({
     isLoading,
   });
 
-  if (totalPages <= 1) {
-    return null;
-  }
-
+  // Always show pagination to give users awareness it exists
+  // Even on single page, it shows "Page 1 of 1"
   return (
     <Box className="mt-6 flex justify-center">
       <MuiPagination

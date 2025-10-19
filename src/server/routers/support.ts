@@ -47,7 +47,7 @@ export const supportRouter = createTRPCRouter({
                       <tr>
                         <td style="background-color: #1d2b48; padding: 40px 40px 36px 40px; text-align: center;">
                           <div style="margin-bottom: 24px;">
-                            <img src="https://contratei.co/logo.png" 
+                            <img src="https://davicmartini.sirv.com/Images/logo.png" 
                                  alt="CONTRATEI" 
                                  style="height: 56px; max-width: 200px; display: block; margin: 0 auto;"
                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" />

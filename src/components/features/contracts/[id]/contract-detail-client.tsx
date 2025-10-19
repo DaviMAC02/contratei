@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   renewContract,
   deleteContract,
+  uploadFile,
+  downloadFile,
 } from "@/app/(dashboard)/contracts/[id]/actions";
 import {
   Button,
@@ -22,6 +24,7 @@ import {
   Divider,
   Snackbar,
   Alert,
+  CircularProgress,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { useTranslation } from "@/lib/use-translation";
@@ -72,10 +75,16 @@ export default function ContractDetailClient({
   const { t, locale } = useTranslation();
   const [isRenewing, setIsRenewing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(
+    null
+  );
   const [errorToast, setErrorToast] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [files, setFiles] = useState(initialFiles);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const contract = initialContract;
-  const files = initialFiles;
   const org = initialOrgs?.[0];
   const contractId = contract.id;
 
@@ -113,218 +122,450 @@ export default function ContractDetailClient({
     }
   };
 
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      setErrorToast("Arquivo muito grande. Tamanho máximo: 10MB");
+      return;
+    }
+
+    setIsUploading(true);
+    setErrorToast(null);
+    setSuccessToast(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("contractId", contractId);
+      formData.append("fileType", "ATTACHMENT");
+
+      const result = await uploadFile(formData);
+
+      if (result.success && result.file) {
+        // Add the new file to the state immediately
+        const newFile = {
+          id: result.file.id,
+          fileName: result.file.fileName,
+          fileType: result.file.fileType,
+          sizeBytes: result.file.sizeBytes,
+          uploadedAt: new Date(result.file.uploadedAt),
+          checksum: result.file.checksum,
+        };
+        setFiles((prevFiles) => [newFile, ...prevFiles]);
+
+        setSuccessToast("Arquivo enviado com sucesso!");
+
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
+    } catch (error: any) {
+      console.error("Erro ao fazer upload:", error);
+
+      // Extract error message
+      let errorMessage = "Erro ao fazer upload do arquivo. Tente novamente.";
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      }
+
+      setErrorToast(errorMessage);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDownload = async (fileId: string, fileName: string) => {
+    setDownloadingFileId(fileId);
+
+    try {
+      const fileData = await downloadFile(fileId);
+
+      // Convert base64 to blob
+      const byteCharacters = atob(fileData.fileContent);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: fileData.mimeType });
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      setSuccessToast("Download concluído!");
+    } catch (error: any) {
+      console.error("Erro ao fazer download:", error);
+      setErrorToast(error.message || "Erro ao fazer download do arquivo.");
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
+
   return (
-    <div className="p-4 md:p-6 lg:p-8 bg-gray-50/50 min-h-screen">
-      <Box className="mb-6">
+    <Box
+      sx={{
+        bgcolor: "#f9fafb",
+        minHeight: "100vh",
+        p: { xs: 2, sm: 3, md: 4 },
+      }}
+    >
+      {/* Back Button */}
+      <Box sx={{ mb: 3 }}>
         <Link
           href="/contracts"
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium transition-colors"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            color: "#6b7280",
+            textDecoration: "none",
+            fontSize: "0.875rem",
+            fontWeight: 500,
+            transition: "color 0.2s",
+          }}
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft style={{ width: 16, height: 16 }} />
           Voltar
         </Link>
       </Box>
 
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-bold tracking-tight">
-              {contract.title}
-            </h1>
-            <Chip
-              label={t(
-                `status.${getStatusTranslationKey(contract.status)}` as any
-              )}
-              variant="outlined"
-              size="small"
-              sx={{
-                borderColor:
-                  contract.status === "ACTIVE"
-                    ? "#10b981"
-                    : contract.status === "DUE_SOON"
-                    ? "#f59e0b"
-                    : contract.status === "EXPIRED"
-                    ? "#ef4444"
-                    : "#e5e7eb",
-                color:
-                  contract.status === "ACTIVE"
-                    ? "#10b981"
-                    : contract.status === "DUE_SOON"
-                    ? "#f59e0b"
-                    : contract.status === "EXPIRED"
-                    ? "#ef4444"
-                    : "#6b7280",
-                fontWeight: 500,
-              }}
-            />
-            <Chip
-              label={
-                contract.contractType === "INBOUND"
-                  ? "Prestando Serviço"
-                  : "Contratando Serviço"
-              }
-              variant="outlined"
-              size="small"
-              sx={{
-                ml: 1,
-                borderColor: "#e5e7eb",
-                color: "#6b7280",
-              }}
-            />
-          </div>
-          <p className="text-muted-foreground">{contract.counterpartyName}</p>
-        </div>
+      {/* Header Section */}
+      <Box sx={{ mb: 4 }}>
+        {/* Title and Badges */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 700,
+              color: "#111827",
+              fontSize: { xs: "1.5rem", sm: "2rem" },
+            }}
+          >
+            {contract.title}
+          </Typography>
+          <Chip
+            label={t(
+              `status.${getStatusTranslationKey(contract.status)}` as any
+            )}
+            size="small"
+            sx={{
+              bgcolor:
+                contract.status === "ACTIVE"
+                  ? "#fef3c7"
+                  : contract.status === "DUE_SOON"
+                  ? "#fef3c7"
+                  : contract.status === "EXPIRED"
+                  ? "#fee2e2"
+                  : "#f3f4f6",
+              color:
+                contract.status === "ACTIVE"
+                  ? "#92400e"
+                  : contract.status === "DUE_SOON"
+                  ? "#92400e"
+                  : contract.status === "EXPIRED"
+                  ? "#991b1b"
+                  : "#374151",
+              fontWeight: 500,
+              border: "none",
+              fontSize: "0.75rem",
+            }}
+          />
+          <Chip
+            label={
+              contract.contractType === "INBOUND"
+                ? "Contratando Serviço"
+                : "Prestando Serviço"
+            }
+            size="small"
+            sx={{
+              bgcolor: "#f3f4f6",
+              color: "#374151",
+              fontWeight: 500,
+              border: "none",
+              fontSize: "0.75rem",
+            }}
+          />
+        </Box>
 
-        <div className="flex gap-2">
+        {/* Subtitle */}
+        <Typography variant="body1" sx={{ color: "#6b7280", mb: 3 }}>
+          {contract.counterpartyName}
+        </Typography>
+
+        {/* Action Buttons */}
+        <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
           <Button
             variant="outlined"
-            size="small"
             onClick={handleRenew}
             disabled={isRenewing}
-            startIcon={<RefreshCw style={{ width: 16, height: 16 }} />}
+            startIcon={<RefreshCw style={{ width: 18, height: 18 }} />}
             sx={{
               textTransform: "none",
               fontWeight: 500,
-              color: "#374151",
-              borderColor: "#e5e7eb",
+              color: "#1f2937",
+              borderColor: "#d1d5db",
+              px: 2.5,
+              py: 1,
               "&:hover": {
-                borderColor: "#d1d5db",
+                borderColor: "#9ca3af",
                 bgcolor: "#f9fafb",
               },
             }}
           >
-            {t("contracts.renew")}
+            Renovar
           </Button>
           <Link href={`/contracts/${contractId}/edit`}>
             <Button
               variant="outlined"
-              size="small"
-              startIcon={<Edit style={{ width: 16, height: 16 }} />}
+              startIcon={<Edit style={{ width: 18, height: 18 }} />}
               sx={{
                 textTransform: "none",
                 fontWeight: 500,
-                color: "#374151",
-                borderColor: "#e5e7eb",
+                color: "#1f2937",
+                borderColor: "#d1d5db",
+                px: 2.5,
+                py: 1,
                 "&:hover": {
-                  borderColor: "#d1d5db",
+                  borderColor: "#9ca3af",
                   bgcolor: "#f9fafb",
                 },
               }}
             >
-              {t("contracts.edit")}
+              Editar Contrato
             </Button>
           </Link>
           <Button
-            variant="contained"
-            size="small"
+            variant="outlined"
             onClick={handleDelete}
             disabled={isDeleting}
-            startIcon={<Trash2 style={{ width: 16, height: 16 }} />}
+            startIcon={<Trash2 style={{ width: 18, height: 18 }} />}
             sx={{
               textTransform: "none",
               fontWeight: 500,
-              bgcolor: "#ef4444",
+              color: "#ef4444",
+              borderColor: "#ef4444",
+              bgcolor: "#ffffff",
+              px: 2.5,
+              py: 1,
               "&:hover": {
-                bgcolor: "#dc2626",
+                bgcolor: "#fef2f2",
+                borderColor: "#dc2626",
+                color: "#dc2626",
               },
               "&:disabled": {
-                bgcolor: "#9ca3af",
+                borderColor: "#d1d5db",
+                color: "#9ca3af",
+                bgcolor: "#ffffff",
               },
             }}
           >
-            {t("contracts.delete")}
+            Excluir Contrato
           </Button>
-        </div>
-      </div>
+        </Box>
+      </Box>
 
-      <div className="grid gap-6 md:grid-cols-2 mb-8">
+      {/* Info Cards Grid */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+          gap: 3,
+          mb: 3,
+        }}
+      >
         {/* Contract Details */}
         <StyledCard>
-          <CardContent>
+          <CardContent sx={{ p: 3 }}>
             <Typography
               variant="h6"
-              sx={{ fontWeight: 600, mb: 2, color: "#1d2b48" }}
+              sx={{
+                fontWeight: 600,
+                mb: 3,
+                color: "#111827",
+                fontSize: "1.125rem",
+              }}
             >
               Detalhes do Contrato
             </Typography>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Responsável:</span>
-                <span className="font-medium">{contract.owner.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Valor:</span>
-                <span className="font-medium">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="body2" sx={{ color: "#6b7280" }}>
+                  Responsável:
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: 500, color: "#111827", textAlign: "right" }}
+                >
+                  {contract.owner.name}
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="body2" sx={{ color: "#6b7280" }}>
+                  Valor:
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: 500, color: "#111827", textAlign: "right" }}
+                >
                   {formatCurrency(
                     Number(contract.valueAmount),
                     contract.currency as any,
                     org?.locale
                   )}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Data de Início:</span>
-                <span>{formatDate(contract.startDate, org?.locale)}</span>
-              </div>
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="body2" sx={{ color: "#6b7280" }}>
+                  Data de Início:
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: 500, color: "#111827", textAlign: "right" }}
+                >
+                  {formatDate(contract.startDate, org?.locale)}
+                </Typography>
+              </Box>
               {contract.endDate && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography variant="body2" sx={{ color: "#6b7280" }}>
                     Data de Término:
-                  </span>
-                  <span>{formatDate(contract.endDate, org?.locale)}</span>
-                </div>
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 500,
+                      color: "#111827",
+                      textAlign: "right",
+                    }}
+                  >
+                    {formatDate(contract.endDate, org?.locale)}
+                  </Typography>
+                </Box>
               )}
               {contract.nextRenewalDate && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography variant="body2" sx={{ color: "#6b7280" }}>
                     Próxima Renovação:
-                  </span>
-                  <span>
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 500,
+                      color: "#111827",
+                      textAlign: "right",
+                    }}
+                  >
                     {formatDate(contract.nextRenewalDate, org?.locale)}
-                  </span>
-                </div>
+                  </Typography>
+                </Box>
               )}
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Periodicidade:</span>
-                <span>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="body2" sx={{ color: "#6b7280" }}>
+                  Periodicidade:
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: 500, color: "#111827", textAlign: "right" }}
+                >
                   {t(
                     `periodicity.${contract.periodicity.toLowerCase()}` as any
                   )}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="body2" sx={{ color: "#6b7280" }}>
                   Renovação Automática:
-                </span>
-                <span>{contract.autoRenew ? "Sim" : "Não"}</span>
-              </div>
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: 500, color: "#111827", textAlign: "right" }}
+                >
+                  {contract.autoRenew ? "Sim" : "Não"}
+                </Typography>
+              </Box>
               {contract.costCenter && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography variant="body2" sx={{ color: "#6b7280" }}>
                     Centro de Custo:
-                  </span>
-                  <span>{contract.costCenter}</span>
-                </div>
-              )}
-              {contract.tags.length > 0 && (
-                <Box>
+                  </Typography>
                   <Typography
                     variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 1 }}
+                    sx={{
+                      fontWeight: 500,
+                      color: "#111827",
+                      textAlign: "right",
+                    }}
                   >
-                    Tags:
+                    {contract.costCenter}
                   </Typography>
-                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                    {contract.tags.map((tag: string) => (
-                      <Chip
-                        key={tag}
-                        label={tag}
-                        variant="outlined"
-                        size="small"
-                      />
-                    ))}
-                  </Box>
                 </Box>
               )}
             </Box>
@@ -333,34 +574,72 @@ export default function ContractDetailClient({
 
         {/* Supplier Info */}
         <StyledCard>
-          <CardContent>
+          <CardContent sx={{ p: 3 }}>
             <Typography
               variant="h6"
-              sx={{ fontWeight: 600, mb: 2, color: "#1d2b48" }}
+              sx={{
+                fontWeight: 600,
+                mb: 3,
+                color: "#111827",
+                fontSize: "1.125rem",
+              }}
             >
-              Informações do Fornecedor
+              Informações da Contraparte
             </Typography>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Nome:</span>
-                <span className="font-medium">{contract.counterpartyName}</span>
-              </div>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="body2" sx={{ color: "#6b7280" }}>
+                  Nome:
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: 500, color: "#111827", textAlign: "right" }}
+                >
+                  {contract.counterpartyName}
+                </Typography>
+              </Box>
               {contract.counterpartyContact && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Contato:</span>
-                  <span>{contract.counterpartyContact}</span>
-                </div>
-              )}
-              {contract.notes && (
-                <Box>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography variant="body2" sx={{ color: "#6b7280" }}>
+                    Contato:
+                  </Typography>
                   <Typography
                     variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 1 }}
+                    sx={{
+                      fontWeight: 500,
+                      color: "#111827",
+                      textAlign: "right",
+                    }}
                   >
+                    {contract.counterpartyContact}
+                  </Typography>
+                </Box>
+              )}
+              {contract.notes && (
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="body2" sx={{ color: "#6b7280", mb: 1 }}>
                     Observações:
                   </Typography>
-                  <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "#111827",
+                      whiteSpace: "pre-wrap",
+                      lineHeight: 1.6,
+                    }}
+                  >
                     {contract.notes}
                   </Typography>
                 </Box>
@@ -368,62 +647,154 @@ export default function ContractDetailClient({
             </Box>
           </CardContent>
         </StyledCard>
-      </div>
+      </Box>
 
       {/* Files */}
-      <StyledCard sx={{ mb: 4 }}>
-        <CardContent>
+      <StyledCard sx={{ mb: 3 }}>
+        <CardContent sx={{ p: 3 }}>
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              mb: 2,
+              mb: 3,
             }}
           >
-            <Typography variant="h6" sx={{ fontWeight: 600, color: "#1d2b48" }}>
-              {t("contracts.files")}
-            </Typography>
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<Upload style={{ width: 16, height: 16 }} />}
-              sx={{
-                textTransform: "none",
-                fontWeight: 500,
-                color: "#1d2b48",
-                borderColor: "#e5e7eb",
-              }}
+            <Typography
+              variant="h6"
+              sx={{ fontWeight: 600, color: "#111827", fontSize: "1.125rem" }}
             >
-              Upload Arquivo
-            </Button>
+              Arquivos
+            </Typography>
+            <Box>
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleFileChange}
+                style={{ display: "none" }}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
+              />
+              <Button
+                variant="outlined"
+                onClick={handleUploadClick}
+                disabled={isUploading}
+                startIcon={
+                  isUploading ? (
+                    <CircularProgress size={18} />
+                  ) : (
+                    <Upload style={{ width: 18, height: 18 }} />
+                  )
+                }
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 500,
+                  color: "#1f2937",
+                  borderColor: "#d1d5db",
+                  px: 2,
+                  py: 0.75,
+                  "&:hover": {
+                    borderColor: "#9ca3af",
+                    bgcolor: "#f9fafb",
+                  },
+                  "&:disabled": {
+                    borderColor: "#e5e7eb",
+                    color: "#9ca3af",
+                  },
+                }}
+              >
+                {isUploading ? "Enviando..." : "Upload Arquivo"}
+              </Button>
+            </Box>
           </Box>
           {files.length === 0 ? (
-            <Typography
-              sx={{ textAlign: "center", color: "text.secondary", py: 4 }}
+            <Box
+              sx={{
+                textAlign: "center",
+                py: 6,
+                color: "#9ca3af",
+              }}
             >
-              Nenhum arquivo anexado
-            </Typography>
+              <FileText
+                style={{
+                  width: 48,
+                  height: 48,
+                  margin: "0 auto 12px",
+                  opacity: 0.5,
+                }}
+              />
+              <Typography variant="body2" sx={{ color: "#6b7280" }}>
+                Nenhum arquivo anexado
+              </Typography>
+            </Box>
           ) : (
-            <Table>
+            <Table sx={{ "& .MuiTableCell-root": { borderColor: "#f3f4f6" } }}>
               <TableHead>
                 <TableRow>
-                  <TableCell>Nome do Arquivo</TableCell>
-                  <TableCell>Tipo</TableCell>
-                  <TableCell>Tamanho</TableCell>
-                  <TableCell>Upload em</TableCell>
-                  <TableCell align="right">Ações</TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      color: "#6b7280",
+                      fontSize: "0.875rem",
+                      bgcolor: "#f9fafb",
+                    }}
+                  >
+                    Nome do Arquivo
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      color: "#6b7280",
+                      fontSize: "0.875rem",
+                      bgcolor: "#f9fafb",
+                    }}
+                  >
+                    Tipo
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      color: "#6b7280",
+                      fontSize: "0.875rem",
+                      bgcolor: "#f9fafb",
+                    }}
+                  >
+                    Tamanho
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      color: "#6b7280",
+                      fontSize: "0.875rem",
+                      bgcolor: "#f9fafb",
+                    }}
+                  >
+                    Upload em
+                  </TableCell>
+                  <TableCell
+                    align="right"
+                    sx={{
+                      fontWeight: 600,
+                      color: "#6b7280",
+                      fontSize: "0.875rem",
+                      bgcolor: "#f9fafb",
+                    }}
+                  >
+                    Ações
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {files.map((file) => (
-                  <TableRow key={file.id}>
-                    <TableCell sx={{ fontWeight: 500 }}>
+                  <TableRow
+                    key={file.id}
+                    sx={{ "&:hover": { bgcolor: "#f9fafb" } }}
+                  >
+                    <TableCell sx={{ fontWeight: 500, color: "#111827" }}>
                       <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                        sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
                       >
                         <FileText
-                          style={{ width: 16, height: 16, color: "#6b7280" }}
+                          style={{ width: 18, height: 18, color: "#6b7280" }}
                         />
                         {file.fileName}
                       </Box>
@@ -431,19 +802,43 @@ export default function ContractDetailClient({
                     <TableCell>
                       <Chip
                         label={file.fileType}
-                        variant="outlined"
                         size="small"
+                        sx={{
+                          bgcolor: "#f3f4f6",
+                          color: "#374151",
+                          fontWeight: 500,
+                          border: "none",
+                          fontSize: "0.75rem",
+                        }}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ color: "#6b7280" }}>
                       {(file.sizeBytes / 1024).toFixed(0)} KB
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ color: "#6b7280" }}>
                       {formatDate(file.uploadedAt, org?.locale)}
                     </TableCell>
                     <TableCell align="right">
-                      <IconButton size="small">
-                        <Download style={{ width: 16, height: 16 }} />
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDownload(file.id, file.fileName)}
+                        disabled={downloadingFileId === file.id}
+                        sx={{
+                          color: "#6b7280",
+                          "&:hover": { bgcolor: "#f3f4f6" },
+                          "&:disabled": {
+                            color: "#9ca3af",
+                          },
+                        }}
+                      >
+                        {downloadingFileId === file.id ? (
+                          <CircularProgress
+                            size={18}
+                            sx={{ color: "#6b7280" }}
+                          />
+                        ) : (
+                          <Download style={{ width: 18, height: 18 }} />
+                        )}
                       </IconButton>
                     </TableCell>
                   </TableRow>
@@ -456,38 +851,91 @@ export default function ContractDetailClient({
 
       {/* Adjustments History */}
       {contract.adjustments.length > 0 && (
-        <StyledCard sx={{ mb: 4 }}>
-          <CardContent>
+        <StyledCard sx={{ mb: 3 }}>
+          <CardContent sx={{ p: 3 }}>
             <Typography
               variant="h6"
-              sx={{ fontWeight: 600, mb: 2, color: "#1d2b48" }}
+              sx={{
+                fontWeight: 600,
+                mb: 3,
+                color: "#111827",
+                fontSize: "1.125rem",
+              }}
             >
-              {t("contracts.adjustments")}
+              Histórico de Reajustes
             </Typography>
-            <Table>
+            <Table sx={{ "& .MuiTableCell-root": { borderColor: "#f3f4f6" } }}>
               <TableHead>
                 <TableRow>
-                  <TableCell>Data</TableCell>
-                  <TableCell>Valor Anterior</TableCell>
-                  <TableCell>Novo Valor</TableCell>
-                  <TableCell>Percentual</TableCell>
-                  <TableCell>Motivo</TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      color: "#6b7280",
+                      fontSize: "0.875rem",
+                      bgcolor: "#f9fafb",
+                    }}
+                  >
+                    Data
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      color: "#6b7280",
+                      fontSize: "0.875rem",
+                      bgcolor: "#f9fafb",
+                    }}
+                  >
+                    Valor Anterior
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      color: "#6b7280",
+                      fontSize: "0.875rem",
+                      bgcolor: "#f9fafb",
+                    }}
+                  >
+                    Novo Valor
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      color: "#6b7280",
+                      fontSize: "0.875rem",
+                      bgcolor: "#f9fafb",
+                    }}
+                  >
+                    Percentual
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      color: "#6b7280",
+                      fontSize: "0.875rem",
+                      bgcolor: "#f9fafb",
+                    }}
+                  >
+                    Motivo
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {contract.adjustments.map((adj: any) => (
-                  <TableRow key={adj.id}>
-                    <TableCell>
+                  <TableRow
+                    key={adj.id}
+                    sx={{ "&:hover": { bgcolor: "#f9fafb" } }}
+                  >
+                    <TableCell sx={{ color: "#6b7280" }}>
                       {formatDate(adj.adjustmentDate, org?.locale)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ fontWeight: 500, color: "#111827" }}>
                       {formatCurrency(
                         Number(adj.oldValue),
                         contract.currency as any,
                         org?.locale
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ fontWeight: 500, color: "#111827" }}>
                       {formatCurrency(
                         Number(adj.newValue),
                         contract.currency as any,
@@ -497,11 +945,19 @@ export default function ContractDetailClient({
                     <TableCell>
                       <Chip
                         label={`${Number(adj.percentage)}%`}
-                        variant="outlined"
                         size="small"
+                        sx={{
+                          bgcolor: "#fef3c7",
+                          color: "#92400e",
+                          fontWeight: 500,
+                          border: "none",
+                          fontSize: "0.75rem",
+                        }}
                       />
                     </TableCell>
-                    <TableCell>{adj.reason || "-"}</TableCell>
+                    <TableCell sx={{ color: "#6b7280" }}>
+                      {adj.reason || "-"}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -513,31 +969,66 @@ export default function ContractDetailClient({
       {/* Renewal History */}
       {contract.renewalHistory.length > 0 && (
         <StyledCard>
-          <CardContent>
+          <CardContent sx={{ p: 3 }}>
             <Typography
               variant="h6"
-              sx={{ fontWeight: 600, mb: 2, color: "#1d2b48" }}
+              sx={{
+                fontWeight: 600,
+                mb: 3,
+                color: "#111827",
+                fontSize: "1.125rem",
+              }}
             >
-              {t("contracts.history")}
+              Histórico de Renovações
             </Typography>
-            <Table>
+            <Table sx={{ "& .MuiTableCell-root": { borderColor: "#f3f4f6" } }}>
               <TableHead>
                 <TableRow>
-                  <TableCell>Data de Renovação</TableCell>
-                  <TableCell>Término Anterior</TableCell>
-                  <TableCell>Novo Término</TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      color: "#6b7280",
+                      fontSize: "0.875rem",
+                      bgcolor: "#f9fafb",
+                    }}
+                  >
+                    Data de Renovação
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      color: "#6b7280",
+                      fontSize: "0.875rem",
+                      bgcolor: "#f9fafb",
+                    }}
+                  >
+                    Término Anterior
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      color: "#6b7280",
+                      fontSize: "0.875rem",
+                      bgcolor: "#f9fafb",
+                    }}
+                  >
+                    Novo Término
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {contract.renewalHistory.map((renewal: any) => (
-                  <TableRow key={renewal.id}>
-                    <TableCell>
+                  <TableRow
+                    key={renewal.id}
+                    sx={{ "&:hover": { bgcolor: "#f9fafb" } }}
+                  >
+                    <TableCell sx={{ fontWeight: 500, color: "#111827" }}>
                       {formatDate(renewal.renewalDate, org?.locale)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ color: "#6b7280" }}>
                       {formatDate(renewal.previousEndDate, org?.locale)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ color: "#6b7280" }}>
                       {formatDate(renewal.newEndDate, org?.locale)}
                     </TableCell>
                   </TableRow>
@@ -571,6 +1062,30 @@ export default function ContractDetailClient({
           {errorToast}
         </Alert>
       </Snackbar>
-    </div>
+
+      {/* Success Toast */}
+      <Snackbar
+        open={!!successToast}
+        autoHideDuration={4000}
+        onClose={() => setSuccessToast(null)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSuccessToast(null)}
+          severity="success"
+          sx={{
+            width: "100%",
+            bgcolor: "#10b981",
+            color: "white",
+            fontSize: "1rem",
+            "& .MuiAlert-icon": {
+              color: "white",
+            },
+          }}
+        >
+          {successToast}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 }

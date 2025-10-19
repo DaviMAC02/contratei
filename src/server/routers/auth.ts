@@ -5,12 +5,36 @@ import { TRPCError } from "@trpc/server";
 export const authRouter = createTRPCRouter({
   signupWithOrg: publicProcedure
     .input(
-      z.object({
-        email: z.string().email(),
-        name: z.string().min(2),
-        orgName: z.string().min(2),
-        country: z.string().length(2), // ISO country code
-      })
+      z
+        .object({
+          email: z.string().email(),
+          name: z.string().min(2),
+          orgName: z.string().min(2),
+          country: z.string().length(2), // ISO country code
+          orgType: z.enum(["PF", "PJ"]).default("PF"),
+          // Identification (BR focus)
+          cpf: z.string().optional(),
+          legalName: z.string().optional(),
+          tradeName: z.string().optional(),
+          cnpj: z.string().optional(),
+          ie: z.string().optional(),
+          // Address
+          address: z
+            .object({
+              cep: z.string().optional(),
+              street: z.string().optional(),
+              number: z.string().optional(),
+              complement: z.string().optional(),
+              neighborhood: z.string().optional(),
+              city: z.string().optional(),
+              state: z.string().optional(),
+            })
+            .optional(),
+        })
+        .refine((data) => (data.orgType === "PJ" ? !!data.cnpj : true), {
+          message: "CNPJ é obrigatório para PJ",
+          path: ["cnpj"],
+        })
     )
     .mutation(async ({ ctx, input }) => {
       const { email, name, orgName, country } = input;
@@ -84,7 +108,22 @@ export const authRouter = createTRPCRouter({
             plan: "FREE",
             maxContracts: 3,
             maxUsers: 1,
-          },
+            orgType: input.orgType,
+            // Identification
+            cpf: input.orgType === "PF" ? input.cpf : undefined,
+            legalName: input.orgType === "PJ" ? input.legalName : undefined,
+            tradeName: input.orgType === "PJ" ? input.tradeName : undefined,
+            cnpj: input.orgType === "PJ" ? input.cnpj : undefined,
+            ie: input.orgType === "PJ" ? input.ie : undefined,
+            // Address
+            addressCep: input.address?.cep,
+            addressStreet: input.address?.street,
+            addressNumber: input.address?.number,
+            addressComplement: input.address?.complement,
+            addressNeighborhood: input.address?.neighborhood,
+            addressCity: input.address?.city,
+            addressState: input.address?.state,
+          } as any,
         });
 
         // Create membership with OWNER role
@@ -102,12 +141,13 @@ export const authRouter = createTRPCRouter({
             orgId: org.id,
             userId: user.id,
             action: "CREATE",
-            entityType: "Organization",
+            entityType: "Org",
             entityId: org.id,
             metadata: {
               orgName,
               country,
               plan: "FREE",
+              orgType: input.orgType,
             },
           },
         });

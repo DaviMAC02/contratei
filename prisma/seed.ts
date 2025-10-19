@@ -73,6 +73,19 @@ async function main() {
       maxContracts: 100,
       maxUsers: 20,
       stripeCustomerId: `cus_test_${nanoid()}`,
+      // PJ organization with address
+      orgType: "PJ",
+      legalName: "Empresa Teste LTDA",
+      tradeName: "Empresa Teste",
+      cnpj: "12.345.678/0001-90",
+      ie: "123.456.789.012",
+      addressCep: "01310100",
+      addressStreet: "Avenida Paulista",
+      addressNumber: "1578",
+      addressComplement: "Sala 501",
+      addressNeighborhood: "Bela Vista",
+      addressCity: "São Paulo",
+      addressState: "SP",
       members: {
         create: [
           {
@@ -109,6 +122,16 @@ async function main() {
       maxContracts: 50,
       maxUsers: 10,
       stripeCustomerId: `cus_test_2_${nanoid()}`,
+      // PF organization (individual contractor/freelancer)
+      orgType: "PF",
+      cpf: "123.456.789-00",
+      addressCep: "04542000",
+      addressStreet: "Avenida Brigadeiro Faria Lima",
+      addressNumber: "3477",
+      addressComplement: "Torre B, 15º andar",
+      addressNeighborhood: "Itaim Bibi",
+      addressCity: "São Paulo",
+      addressState: "SP",
       members: {
         create: [
           {

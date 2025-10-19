@@ -29,6 +29,9 @@ export async function getDashboardData() {
   const serializedContracts = contracts.contracts.map((contract) => ({
     ...contract,
     valueAmount: Number(contract.valueAmount),
+    adjustmentValue: contract.adjustmentValue
+      ? Number(contract.adjustmentValue)
+      : null,
     nextRenewalDate: contract.nextRenewalDate
       ? new Date(contract.nextRenewalDate)
       : null,

@@ -37,26 +37,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                         <tr>
                           <td style="background-color: #1d2b48; padding: 48px 40px; text-align: center;">
                             <div style="margin-bottom: 24px;">
-                              <img src="https://contratei.co/logo.png" 
-                                   alt="CONTRATEI" 
-                                   style="height: 56px; max-width: 200px; display: block; margin: 0 auto;"
-                                   onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" />
-                              <div style="background-color: #ffffff; display: none; padding: 14px 32px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-                                <span style="color: #1d2b48; font-size: 28px; font-weight: 800; letter-spacing: 0.5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-                                  CONTRATEI
-                                </span>
+                              <div style="background-color: #ffffff; display: inline-block; padding: 20px 48px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+                                <img 
+                                  src="https://davicmartini.sirv.com/Images/logo.png" 
+                                  alt="Contratei" 
+                                  style="height: 56px; max-width: 240px; display: block; margin: 0 auto;"
+                                />
                               </div>
                             </div>
                             <h2 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; line-height: 1.3;">
                               Acesse sua conta
                             </h2>
                             <p style="color: rgba(255, 255, 255, 0.85); margin: 12px 0 0 0; font-size: 16px;">
-                              Clique no botão abaixo para fazer login de forma segura
-                            </p>
+              Clique no botão abaixo para fazer login de forma segura
+            </p>
                           </td>
-                        </tr>
-                        
-                        <!-- Conteúdo -->
+                        </tr>                        <!-- Conteúdo -->
                         <tr>
                           <td style="padding: 48px 40px;">
                             <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 32px 0;">

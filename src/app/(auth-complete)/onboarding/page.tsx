@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc-client";
+import { lookupCep } from "@/lib/cep";
 import {
   Button,
   TextField,
@@ -44,7 +45,23 @@ export default function OnboardingPage() {
   const [orgData, setOrgData] = useState({
     name: "",
     country: "BR" as "BR" | "PT",
+    orgType: "PF" as "PF" | "PJ",
+    // Identification
+    cpf: "",
+    legalName: "",
+    tradeName: "",
+    cnpj: "",
+    ie: "",
+    // Address
+    cep: "",
+    street: "",
+    number: "",
+    complement: "",
+    neighborhood: "",
+    city: "",
+    state: "",
   });
+  const [isCepLoading, setIsCepLoading] = useState(false);
   const [contractData, setContractData] = useState({
     title: "",
     counterpartyName: "",
@@ -88,7 +105,30 @@ export default function OnboardingPage() {
   }, [orgsQuery.data]);
 
   const handleCreateOrg = async () => {
-    const org = await createOrgMutation.mutateAsync(orgData);
+    const org = await createOrgMutation.mutateAsync({
+      name: orgData.name,
+      country: orgData.country,
+      orgType: orgData.orgType,
+      cpf: orgData.orgType === "PF" ? orgData.cpf || undefined : undefined,
+      legalName:
+        orgData.orgType === "PJ" ? orgData.legalName || undefined : undefined,
+      tradeName:
+        orgData.orgType === "PJ" ? orgData.tradeName || undefined : undefined,
+      cnpj: orgData.orgType === "PJ" ? orgData.cnpj || undefined : undefined,
+      ie: orgData.orgType === "PJ" ? orgData.ie || undefined : undefined,
+      address:
+        orgData.cep || orgData.street || orgData.number || orgData.city
+          ? {
+              cep: orgData.cep || undefined,
+              street: orgData.street || undefined,
+              number: orgData.number || undefined,
+              complement: orgData.complement || undefined,
+              neighborhood: orgData.neighborhood || undefined,
+              city: orgData.city || undefined,
+              state: orgData.state || undefined,
+            }
+          : undefined,
+    });
     setCurrentOrgId(org.id);
     setStep(2);
   };
@@ -382,6 +422,217 @@ export default function OnboardingPage() {
                     Define a moeda e idioma da sua organização
                   </FormHelperText>
                 </FormControl>
+
+                {/* Org Type PF/PJ (BR focus) */}
+                {orgData.country === "BR" && (
+                  <>
+                    <FormControl fullWidth>
+                      <InputLabel>Tipo de Organização</InputLabel>
+                      <Select
+                        value={orgData.orgType}
+                        label="Tipo de Organização"
+                        onChange={(e) =>
+                          setOrgData({
+                            ...orgData,
+                            orgType: e.target.value as "PF" | "PJ",
+                          })
+                        }
+                      >
+                        <MenuItem value="PF">Pessoa Física (PF)</MenuItem>
+                        <MenuItem value="PJ">Pessoa Jurídica (PJ)</MenuItem>
+                      </Select>
+                    </FormControl>
+
+                    {/* Identification */}
+                    {orgData.orgType === "PF" ? (
+                      <TextField
+                        fullWidth
+                        label="CPF"
+                        placeholder="000.000.000-00"
+                        value={orgData.cpf}
+                        onChange={(e) =>
+                          setOrgData({ ...orgData, cpf: e.target.value })
+                        }
+                      />
+                    ) : (
+                      <>
+                        <Box
+                          sx={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: 2,
+                          }}
+                        >
+                          <TextField
+                            fullWidth
+                            label="Razão Social"
+                            value={orgData.legalName}
+                            onChange={(e) =>
+                              setOrgData({
+                                ...orgData,
+                                legalName: e.target.value,
+                              })
+                            }
+                          />
+                          <TextField
+                            fullWidth
+                            label="Nome Fantasia"
+                            value={orgData.tradeName}
+                            onChange={(e) =>
+                              setOrgData({
+                                ...orgData,
+                                tradeName: e.target.value,
+                              })
+                            }
+                          />
+                        </Box>
+                        <Box
+                          sx={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: 2,
+                          }}
+                        >
+                          <TextField
+                            fullWidth
+                            label="CNPJ"
+                            value={orgData.cnpj}
+                            onChange={(e) =>
+                              setOrgData({ ...orgData, cnpj: e.target.value })
+                            }
+                          />
+                          <TextField
+                            fullWidth
+                            label="Inscrição Estadual (opcional)"
+                            value={orgData.ie}
+                            onChange={(e) =>
+                              setOrgData({ ...orgData, ie: e.target.value })
+                            }
+                          />
+                        </Box>
+                      </>
+                    )}
+
+                    {/* Address */}
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        Endereço
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: "2fr 1fr",
+                          gap: 2,
+                          mb: 2,
+                        }}
+                      >
+                        <TextField
+                          label="CEP"
+                          placeholder="00000-000"
+                          value={orgData.cep}
+                          onChange={(e) =>
+                            setOrgData({ ...orgData, cep: e.target.value })
+                          }
+                          onBlur={async () => {
+                            const clean = (orgData.cep || "").replace(
+                              /\D/g,
+                              ""
+                            );
+                            if (clean.length === 8) {
+                              try {
+                                setIsCepLoading(true);
+                                const addr = await lookupCep(clean);
+                                setOrgData((prev) => ({
+                                  ...prev,
+                                  street: addr.street,
+                                  neighborhood: addr.neighborhood,
+                                  city: addr.city,
+                                  state: addr.state,
+                                  complement:
+                                    prev.complement || addr.complement,
+                                }));
+                              } catch (e) {
+                                // noop, handled by user editing
+                              } finally {
+                                setIsCepLoading(false);
+                              }
+                            }
+                          }}
+                        />
+                        <TextField
+                          label="Número"
+                          value={orgData.number}
+                          onChange={(e) =>
+                            setOrgData({ ...orgData, number: e.target.value })
+                          }
+                        />
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: "2fr 1fr",
+                          gap: 2,
+                          mb: 2,
+                        }}
+                      >
+                        <TextField
+                          label="Rua"
+                          value={orgData.street}
+                          onChange={(e) =>
+                            setOrgData({ ...orgData, street: e.target.value })
+                          }
+                          disabled={isCepLoading}
+                        />
+                        <TextField
+                          label="Complemento"
+                          value={orgData.complement}
+                          onChange={(e) =>
+                            setOrgData({
+                              ...orgData,
+                              complement: e.target.value,
+                            })
+                          }
+                        />
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: "2fr 1fr 1fr",
+                          gap: 2,
+                        }}
+                      >
+                        <TextField
+                          label="Bairro"
+                          value={orgData.neighborhood}
+                          onChange={(e) =>
+                            setOrgData({
+                              ...orgData,
+                              neighborhood: e.target.value,
+                            })
+                          }
+                          disabled={isCepLoading}
+                        />
+                        <TextField
+                          label="Cidade"
+                          value={orgData.city}
+                          onChange={(e) =>
+                            setOrgData({ ...orgData, city: e.target.value })
+                          }
+                          disabled={isCepLoading}
+                        />
+                        <TextField
+                          label="UF"
+                          value={orgData.state}
+                          onChange={(e) =>
+                            setOrgData({ ...orgData, state: e.target.value })
+                          }
+                          inputProps={{ maxLength: 2 }}
+                          disabled={isCepLoading}
+                        />
+                      </Box>
+                    </Box>
+                  </>
+                )}
               </Box>
 
               <Box sx={{ display: "flex", justifyContent: "flex-end" }}>

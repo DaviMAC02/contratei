@@ -39,7 +39,9 @@ function SignInForm() {
         alert(`Erro: ${result.error}`);
         setIsLoading(false);
       } else {
-        window.location.href = "/auth/verify-request";
+        window.location.href = `/auth/verify-request?email=${encodeURIComponent(
+          email
+        )}`;
       }
     } catch (error) {
       alert("Erro ao fazer login. Tente novamente.");

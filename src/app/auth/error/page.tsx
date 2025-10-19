@@ -83,13 +83,18 @@ function AuthErrorContent() {
 
           {error === "Verification" && (
             <Alert severity="info" sx={{ mb: 3, textAlign: "left" }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                💡 Dica:
-              </Typography>
-              <Box component="ul" sx={{ pl: 2, mb: 0 }}>
-                <li>Cada link só pode ser usado uma vez</li>
-                <li>Links expiram em 24 horas</li>
-                <li>Solicite um novo link se necessário</li>
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Atenção:
+                </Typography>
+                <Box
+                  component="ul"
+                  sx={{ pl: 2, mb: 0, mt: 0, listStylePosition: "outside" }}
+                >
+                  <li>Cada link só pode ser usado uma vez</li>
+                  <li>Links expiram em 24 horas</li>
+                  <li>Solicite um novo link se necessário</li>
+                </Box>
               </Box>
             </Alert>
           )}

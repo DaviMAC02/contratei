@@ -110,6 +110,27 @@ model Org {
   maxContracts Int @default(3)
   maxUsers     Int @default(1)
 
+  // Identification
+  orgType OrgType @default(PF)
+
+  // PF (Pessoa Física)
+  cpf String? @unique
+
+  // PJ (Pessoa Jurídica)
+  legalName String? // Razão Social
+  tradeName String? // Nome Fantasia (display)
+  cnpj      String? @unique
+  ie        String? // Inscrição Estadual (optional)
+
+  // Address (Brazil-focused for now)
+  addressCep          String?
+  addressStreet       String?
+  addressNumber       String?
+  addressComplement   String?
+  addressNeighborhood String?
+  addressCity         String?
+  addressState        String?
+
   // Billing
   stripeCustomerId       String?       @unique
   stripeSubscriptionId   String?       @unique
@@ -129,6 +150,11 @@ model Org {
   @@index([stripeCustomerId])
   @@index([stripeSubscriptionId])
   @@index([deletedAt])
+}
+
+enum OrgType {
+  PF
+  PJ
 }
 
 model OrgMember {
@@ -300,7 +326,8 @@ model ContractFile {
   orgId       String
   fileName    String
   fileType    FileType @default(ATTACHMENT)
-  storagePath String // Supabase storage path
+  mimeType    String? // MIME type of the file
+  fileContent String   @default("") @db.Text // Base64 encoded file content stored in database
   checksum    String
   sizeBytes   Int
   uploadedBy  String

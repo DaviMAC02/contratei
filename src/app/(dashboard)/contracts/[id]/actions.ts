@@ -106,3 +106,82 @@ export async function deleteContract(contractId: string) {
 
   return { success: true };
 }
+
+export async function uploadFile(formData: FormData) {
+  try {
+    const session = await auth();
+
+    if (!session?.user) {
+      throw new Error("Não autorizado");
+    }
+
+    if (!session.selectedOrgId) {
+      throw new Error("Nenhuma organização selecionada");
+    }
+
+    const orgId = session.selectedOrgId;
+    const contractId = formData.get("contractId") as string;
+    const file = formData.get("file") as File;
+    const fileType =
+      (formData.get("fileType") as "MAIN" | "ATTACHMENT") || "ATTACHMENT";
+
+    if (!file || !contractId) {
+      throw new Error("Arquivo e ID do contrato são obrigatórios");
+    }
+
+    // Convert file to base64
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const fileContent = buffer.toString("base64");
+
+    // Calculate checksum
+    const crypto = await import("crypto");
+    const checksum = crypto.createHash("md5").update(buffer).digest("hex");
+
+    const trpc = await createCaller({ session });
+
+    // Upload file directly to database
+    const fileRecord = await trpc.file.uploadFile({
+      orgId,
+      contractId,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType,
+      mimeType: file.type || "application/octet-stream",
+      fileContent,
+      checksum,
+    });
+
+    return { success: true, file: fileRecord };
+  } catch (error: any) {
+    console.error("Upload file error:", error);
+    throw new Error(
+      error.message || "Erro ao fazer upload do arquivo. Tente novamente."
+    );
+  }
+}
+
+export async function downloadFile(fileId: string) {
+  const session = await auth();
+
+  if (!session?.user) {
+    throw new Error("Não autorizado");
+  }
+
+  if (!session.selectedOrgId) {
+    throw new Error("Nenhuma organização selecionada");
+  }
+
+  const orgId = session.selectedOrgId;
+  const trpc = await createCaller({ session });
+
+  try {
+    const fileData = await trpc.file.getFileContent({ orgId, fileId });
+    return fileData;
+  } catch (error: any) {
+    console.error("Download file error:", error);
+    throw new Error(
+      error.message || "Erro ao fazer download do arquivo. Tente novamente."
+    );
+  }
+}
