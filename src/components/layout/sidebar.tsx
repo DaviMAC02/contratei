@@ -212,14 +212,16 @@ export function Sidebar({
       >
         {/* Logo */}
         <Box className="flex h-20 items-center border-b border-gray-100 px-6 py-4 justify-center">
-          <Image
-            src="/logo.svg"
-            alt="Contratei Logo"
-            width={145}
-            height={50}
-            priority
-            style={{ width: "145px", height: "50px" }}
-          />
+          <Link href="/dashboard" passHref style={{ cursor: "pointer" }}>
+            <Image
+              src="/logo.svg"
+              alt="Contratei Logo"
+              width={145}
+              height={50}
+              priority
+              style={{ width: "145px", height: "50px" }}
+            />
+          </Link>
         </Box>
 
         {/* Navigation */}

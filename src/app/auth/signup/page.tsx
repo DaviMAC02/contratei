@@ -145,7 +145,17 @@ export default function SignUpPage() {
       }
     } catch (error: any) {
       console.error("Sign up error:", error);
-      setError(error.message || "Erro ao criar conta. Tente novamente.");
+
+      // Extract user-friendly error message
+      let errorMessage = "Erro ao criar conta. Tente novamente.";
+
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.data?.message) {
+        errorMessage = error.data.message;
+      }
+
+      setError(errorMessage);
       setIsLoading(false);
     }
   };
@@ -446,9 +456,28 @@ export default function SignUpPage() {
                     transition: "all 0.3s ease",
                     zIndex: 2,
                     mb: 1.5,
+                    position: "relative",
                   }}
                 >
-                  {currentStep > step.num ? "✓" : step.num}
+                  {currentStep > step.num ? (
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M13.3334 4L6.00002 11.3333L2.66669 8"
+                        stroke="white"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  ) : (
+                    step.num
+                  )}
                 </Box>
 
                 {/* Label */}

@@ -25,6 +25,7 @@ import {
   Snackbar,
   Alert,
   CircularProgress,
+  Tooltip,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { useTranslation } from "@/lib/use-translation";
@@ -42,8 +43,10 @@ import {
   FileText,
   Upload,
   Download,
+  Lock,
 } from "lucide-react";
 import Link from "next/link";
+import { PLANS } from "@/lib/stripe";
 
 // Styled Card matching dashboard styles
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -87,6 +90,10 @@ export default function ContractDetailClient({
   const contract = initialContract;
   const org = initialOrgs?.[0];
   const contractId = contract.id;
+
+  // Check if plan supports file upload
+  const currentPlan = org?.plan ? PLANS[org.plan as keyof typeof PLANS] : null;
+  const canUploadFiles = currentPlan?.features.fileUpload ?? false;
 
   const handleRenew = async () => {
     if (confirm("Deseja renovar este contrato?")) {
@@ -673,37 +680,57 @@ export default function ContractDetailClient({
                 onChange={handleFileChange}
                 style={{ display: "none" }}
                 accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
+                disabled={!canUploadFiles}
               />
-              <Button
-                variant="outlined"
-                onClick={handleUploadClick}
-                disabled={isUploading}
-                startIcon={
-                  isUploading ? (
-                    <CircularProgress size={18} />
-                  ) : (
-                    <Upload style={{ width: 18, height: 18 }} />
-                  )
+              <Tooltip
+                title={
+                  !canUploadFiles
+                    ? "Seu plano não suporta upload de arquivos. Faça upgrade para desbloquear esta funcionalidade."
+                    : ""
                 }
-                sx={{
-                  textTransform: "none",
-                  fontWeight: 500,
-                  color: "#1f2937",
-                  borderColor: "#d1d5db",
-                  px: 2,
-                  py: 0.75,
-                  "&:hover": {
-                    borderColor: "#9ca3af",
-                    bgcolor: "#f9fafb",
-                  },
-                  "&:disabled": {
-                    borderColor: "#e5e7eb",
-                    color: "#9ca3af",
-                  },
-                }}
+                arrow
+                placement="top"
               >
-                {isUploading ? "Enviando..." : "Upload Arquivo"}
-              </Button>
+                <span>
+                  <Button
+                    variant="outlined"
+                    onClick={handleUploadClick}
+                    disabled={isUploading || !canUploadFiles}
+                    startIcon={
+                      isUploading ? (
+                        <CircularProgress size={18} />
+                      ) : !canUploadFiles ? (
+                        <Lock style={{ width: 18, height: 18 }} />
+                      ) : (
+                        <Upload style={{ width: 18, height: 18 }} />
+                      )
+                    }
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 500,
+                      color: !canUploadFiles ? "#9ca3af" : "#1f2937",
+                      borderColor: !canUploadFiles ? "#e5e7eb" : "#d1d5db",
+                      px: 2,
+                      py: 0.75,
+                      "&:hover": {
+                        borderColor: !canUploadFiles ? "#e5e7eb" : "#9ca3af",
+                        bgcolor: !canUploadFiles ? "transparent" : "#f9fafb",
+                      },
+                      "&:disabled": {
+                        borderColor: "#e5e7eb",
+                        color: "#9ca3af",
+                        cursor: !canUploadFiles ? "not-allowed" : "default",
+                      },
+                    }}
+                  >
+                    {isUploading
+                      ? "Enviando..."
+                      : !canUploadFiles
+                      ? "Upload Bloqueado"
+                      : "Upload Arquivo"}
+                  </Button>
+                </span>
+              </Tooltip>
             </Box>
           </Box>
           {files.length === 0 ? (

@@ -947,13 +947,22 @@ function UsageContent({ orgId, org }: { orgId: string; org: any }) {
                 <Box className="flex-1">
                   <Typography
                     variant="subtitle2"
-                    className="font-semibold text-blue-900 mb-0.5"
+                    sx={{
+                      fontWeight: 600,
+                      color: "#1e3a8a",
+                      mb: 1,
+                    }}
                   >
                     Desbloqueie todos os recursos
                   </Typography>
                   <Typography
                     variant="body2"
-                    className="text-blue-700 text-sm mb-2"
+                    sx={{
+                      color: "#1e40af",
+                      fontSize: "0.875rem",
+                      lineHeight: 1.5,
+                      mb: 3,
+                    }}
                   >
                     Faça upgrade para ter acesso a alertas, renovações,
                     reajustes automáticos e muito mais.
@@ -964,10 +973,14 @@ function UsageContent({ orgId, org }: { orgId: string; org: any }) {
                       variant="contained"
                       sx={{
                         bgcolor: "#1d2b48",
+                        fontSize: "0.875rem",
+                        fontWeight: 500,
+                        textTransform: "none",
+                        px: 2.5,
+                        py: 1,
                         "&:hover": {
-                          bgcolor: "#b3efe5",
-                          color: "#1d2b48",
-                          border: "1px solid rgba(0, 0, 0, 0.2)",
+                          bgcolor: "#152038",
+                          boxShadow: "0 2px 4px 0 rgba(0, 0, 0, 0.1)",
                         },
                       }}
                     >

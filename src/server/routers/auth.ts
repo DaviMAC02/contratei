@@ -87,79 +87,106 @@ export const authRouter = createTRPCRouter({
       }
 
       // Create user and organization in a transaction
-      const result = await ctx.prisma.$transaction(async (tx) => {
-        // Create user
-        const user = await tx.user.create({
-          data: {
-            email,
-            name,
-          },
-        });
-
-        // Create organization
-        const org = await tx.org.create({
-          data: {
-            name: orgName,
-            slug,
-            country,
-            currency,
-            locale,
-            timezone,
-            plan: "FREE",
-            maxContracts: 3,
-            maxUsers: 1,
-            orgType: input.orgType,
-            // Identification
-            cpf: input.orgType === "PF" ? input.cpf : undefined,
-            legalName: input.orgType === "PJ" ? input.legalName : undefined,
-            tradeName: input.orgType === "PJ" ? input.tradeName : undefined,
-            cnpj: input.orgType === "PJ" ? input.cnpj : undefined,
-            ie: input.orgType === "PJ" ? input.ie : undefined,
-            // Address
-            addressCep: input.address?.cep,
-            addressStreet: input.address?.street,
-            addressNumber: input.address?.number,
-            addressComplement: input.address?.complement,
-            addressNeighborhood: input.address?.neighborhood,
-            addressCity: input.address?.city,
-            addressState: input.address?.state,
-          } as any,
-        });
-
-        // Create membership with OWNER role
-        await tx.orgMember.create({
-          data: {
-            userId: user.id,
-            orgId: org.id,
-            role: "OWNER",
-          },
-        });
-
-        // Create audit log
-        await tx.auditLog.create({
-          data: {
-            orgId: org.id,
-            userId: user.id,
-            action: "CREATE",
-            entityType: "Org",
-            entityId: org.id,
-            metadata: {
-              orgName,
-              country,
-              plan: "FREE",
-              orgType: input.orgType,
+      try {
+        const result = await ctx.prisma.$transaction(async (tx) => {
+          // Create user
+          const user = await tx.user.create({
+            data: {
+              email,
+              name,
             },
-          },
+          });
+
+          // Create organization
+          const org = await tx.org.create({
+            data: {
+              name: orgName,
+              slug,
+              country,
+              currency,
+              locale,
+              timezone,
+              plan: "FREE",
+              maxContracts: 3,
+              maxUsers: 1,
+              orgType: input.orgType,
+              // Identification
+              cpf: input.orgType === "PF" ? input.cpf : undefined,
+              legalName: input.orgType === "PJ" ? input.legalName : undefined,
+              tradeName: input.orgType === "PJ" ? input.tradeName : undefined,
+              cnpj: input.orgType === "PJ" ? input.cnpj : undefined,
+              ie: input.orgType === "PJ" ? input.ie : undefined,
+              // Address
+              addressCep: input.address?.cep,
+              addressStreet: input.address?.street,
+              addressNumber: input.address?.number,
+              addressComplement: input.address?.complement,
+              addressNeighborhood: input.address?.neighborhood,
+              addressCity: input.address?.city,
+              addressState: input.address?.state,
+            } as any,
+          });
+
+          // Create membership with OWNER role
+          await tx.orgMember.create({
+            data: {
+              userId: user.id,
+              orgId: org.id,
+              role: "OWNER",
+            },
+          });
+
+          // Create audit log
+          await tx.auditLog.create({
+            data: {
+              orgId: org.id,
+              userId: user.id,
+              action: "CREATE",
+              entityType: "Org",
+              entityId: org.id,
+              metadata: {
+                orgName,
+                country,
+                plan: "FREE",
+                orgType: input.orgType,
+              },
+            },
+          });
+
+          return { user, org };
         });
 
-        return { user, org };
-      });
-
-      return {
-        success: true,
-        userId: result.user.id,
-        orgId: result.org.id,
-      };
+        return {
+          success: true,
+          userId: result.user.id,
+          orgId: result.org.id,
+        };
+      } catch (error: any) {
+        // Handle Prisma unique constraint violations
+        if (error.code === "P2002") {
+          const target = error.meta?.target;
+          if (target && Array.isArray(target)) {
+            if (target.includes("cpf")) {
+              throw new TRPCError({
+                code: "CONFLICT",
+                message: "Este CPF já está cadastrado em outra organização.",
+              });
+            }
+            if (target.includes("cnpj")) {
+              throw new TRPCError({
+                code: "CONFLICT",
+                message: "Este CNPJ já está cadastrado em outra organização.",
+              });
+            }
+          }
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Já existe uma organização com estes dados.",
+          });
+        }
+        // Re-throw other errors
+        throw error;
+      }
     }),
 
   checkUserOwnership: publicProcedure

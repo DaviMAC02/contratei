@@ -73,7 +73,7 @@ export const fileRouter = createTRPCRouter({
         throw new TRPCError({
           code: "FORBIDDEN",
           message:
-            "Your plan does not support file uploads. Please upgrade to upload files.",
+            "Seu plano não suporta upload de arquivos. Faça upgrade para desbloquear esta funcionalidade.",
         });
       }
 
@@ -101,7 +101,7 @@ export const fileRouter = createTRPCRouter({
           checksum: input.checksum,
           sizeBytes: input.fileSize,
           uploadedBy: ctx.session!.user.id,
-        },
+        } as any,
       });
 
       await createAuditLog({
@@ -134,11 +134,10 @@ export const fileRouter = createTRPCRouter({
           id: true,
           fileName: true,
           fileType: true,
-          mimeType: true,
           sizeBytes: true,
           uploadedAt: true,
           checksum: true,
-          // Exclude fileContent for performance
+          // Exclude fileContent and mimeType for performance
         },
         orderBy: { uploadedAt: "desc" },
       });
@@ -155,9 +154,9 @@ export const fileRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      const file = await ctx.prisma.contractFile.findUnique({
+      const file = (await ctx.prisma.contractFile.findUnique({
         where: { id: input.fileId },
-      });
+      })) as any;
 
       if (!file || file.orgId !== input.orgId) {
         throw new TRPCError({

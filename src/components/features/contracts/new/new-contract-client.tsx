@@ -3,10 +3,10 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "@/lib/use-translation";
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { trackContractCreated } from "@/components/providers/posthog-provider";
-import { createContract } from "@/app/(dashboard)/contracts/new/actions";
+import { createContractWithFiles } from "@/app/(dashboard)/contracts/new/actions";
 import {
   Box,
   Stepper,
@@ -85,6 +85,7 @@ export default function NewContractClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [errorToast, setErrorToast] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [formData, setFormData] = useState<any>({
     contractType: "OUTBOUND",
     periodicity: "MONTHLY",
@@ -94,6 +95,7 @@ export default function NewContractClient({
 
   // Ref para controlar se o submit foi explicitamente solicitado
   const canSubmitRef = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const orgId = initialOrgId;
   const org = initialOrg;
@@ -137,29 +139,54 @@ export default function NewContractClient({
     setIsSubmitting(true);
 
     try {
-      await createContract({
-        orgId,
-        title: formData.title,
-        contractType: formData.contractType,
-        counterpartyName: formData.counterpartyName,
-        counterpartyContact: formData.counterpartyContact,
-        ownerUserId: formData.ownerUserId,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        periodicity: formData.periodicity,
-        customDays: formData.customDays
-          ? Number(formData.customDays)
-          : undefined,
-        autoRenew: formData.autoRenew,
-        valueAmount: Number(formData.valueAmount),
-        adjustmentType: formData.adjustmentType,
-        adjustmentValue: formData.adjustmentValue
-          ? Number(formData.adjustmentValue)
-          : undefined,
-        costCenter: formData.costCenter,
-        tags: formData.tags,
-        notes: formData.notes,
+      // Create FormData with contract data and files
+      const submitFormData = new FormData();
+
+      // Add contract data
+      submitFormData.append("orgId", orgId);
+      submitFormData.append("title", formData.title);
+      submitFormData.append("contractType", formData.contractType);
+      submitFormData.append("counterpartyName", formData.counterpartyName);
+      if (formData.counterpartyContact) {
+        submitFormData.append(
+          "counterpartyContact",
+          formData.counterpartyContact
+        );
+      }
+      submitFormData.append("ownerUserId", formData.ownerUserId);
+      submitFormData.append("startDate", formData.startDate);
+      if (formData.endDate) {
+        submitFormData.append("endDate", formData.endDate);
+      }
+      submitFormData.append("periodicity", formData.periodicity);
+      if (formData.customDays) {
+        submitFormData.append("customDays", formData.customDays.toString());
+      }
+      submitFormData.append("autoRenew", formData.autoRenew.toString());
+      submitFormData.append("valueAmount", formData.valueAmount.toString());
+      submitFormData.append("adjustmentType", formData.adjustmentType);
+      if (formData.adjustmentValue) {
+        submitFormData.append(
+          "adjustmentValue",
+          formData.adjustmentValue.toString()
+        );
+      }
+      if (formData.costCenter) {
+        submitFormData.append("costCenter", formData.costCenter);
+      }
+      if (formData.tags) {
+        submitFormData.append("tags", formData.tags);
+      }
+      if (formData.notes) {
+        submitFormData.append("notes", formData.notes);
+      }
+
+      // Add files
+      selectedFiles.forEach((file) => {
+        submitFormData.append("files", file);
       });
+
+      await createContractWithFiles(submitFormData);
 
       // Track contract creation
       if (org) {
@@ -178,6 +205,29 @@ export default function NewContractClient({
       setErrorToast("Erro ao criar contrato. Por favor, tente novamente.");
       setIsSubmitting(false);
     }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      setSelectedFiles([...selectedFiles, ...newFiles]);
+      // Reset input value to allow selecting the same file again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
   if (!orgId) {
@@ -625,6 +675,117 @@ export default function NewContractClient({
                 },
               }}
             />
+
+            {/* File Upload Section */}
+            <Box>
+              <Typography
+                variant="body2"
+                sx={{ mb: 1, fontWeight: 500, color: "#374151" }}
+              >
+                Arquivos (opcional)
+              </Typography>
+              <Box
+                sx={{
+                  border: "2px dashed #d1d5db",
+                  borderRadius: "8px",
+                  p: 3,
+                  textAlign: "center",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  "&:hover": {
+                    borderColor: "#1d2b48",
+                    backgroundColor: "#f9fafb",
+                  },
+                }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  onChange={handleFileSelect}
+                  style={{ display: "none" }}
+                />
+                <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                <Typography variant="body2" sx={{ color: "#6b7280" }}>
+                  Clique para selecionar arquivos
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ color: "#9ca3af", display: "block", mt: 0.5 }}
+                >
+                  Você pode adicionar múltiplos arquivos
+                </Typography>
+              </Box>
+
+              {/* Selected Files List */}
+              {selectedFiles.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ mb: 1, fontWeight: 500, color: "#374151" }}
+                  >
+                    Arquivos selecionados ({selectedFiles.length})
+                  </Typography>
+                  <Box
+                    sx={{ display: "flex", flexDirection: "column", gap: 1 }}
+                  >
+                    {selectedFiles.map((file, index) => (
+                      <Box
+                        key={index}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          p: 2,
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "8px",
+                          backgroundColor: "#f9fafb",
+                        }}
+                      >
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontWeight: 500,
+                              color: "#1f2937",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {file.name}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{ color: "#6b7280" }}
+                          >
+                            {formatFileSize(file.size)}
+                          </Typography>
+                        </Box>
+                        <Button
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveFile(index);
+                          }}
+                          sx={{
+                            minWidth: "auto",
+                            p: 0.5,
+                            color: "#ef4444",
+                            "&:hover": {
+                              backgroundColor: "#fee2e2",
+                            },
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </Box>
           </Box>
         );
 

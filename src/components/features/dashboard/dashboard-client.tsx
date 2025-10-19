@@ -274,29 +274,41 @@ export default function DashboardClient({
         </Box>
         <MuiCardContent className="p-6">
           {contracts.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center py-16">
               <Box
                 sx={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 1.5,
+                  width: 80,
+                  height: 80,
+                  borderRadius: 2,
                   bgcolor: "#f9fafb",
                   border: "2px dashed #d1d5db",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  margin: "0 auto 16px",
+                  margin: "0 auto 24px",
                 }}
               >
-                <FileText className="h-7 w-7 text-gray-400" />
+                <FileText className="h-9 w-9 text-gray-400" />
               </Box>
               <Typography
                 variant="h6"
-                className="text-gray-900 font-semibold mb-2"
+                sx={{
+                  color: "#111827",
+                  fontWeight: 600,
+                  fontSize: "1.125rem",
+                  mb: 1.5,
+                }}
               >
                 Nenhum contrato cadastrado
               </Typography>
-              <Typography variant="body2" className="text-gray-500 mb-6">
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "#6b7280",
+                  fontSize: "0.9375rem",
+                  mb: 4,
+                }}
+              >
                 Comece criando seu primeiro contrato
               </Typography>
               <Link href={`/contracts/new`}>
@@ -304,10 +316,15 @@ export default function DashboardClient({
                   variant="contained"
                   sx={{
                     bgcolor: "#1d2b48",
+                    fontSize: "0.9375rem",
+                    fontWeight: 500,
+                    px: 3,
+                    py: 1.25,
+                    textTransform: "none",
+                    boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
                     "&:hover": {
-                      bgcolor: "#b3efe5",
-                      color: "#1d2b48",
-                      border: "1px solid rgba(0, 0, 0, 0.2)",
+                      bgcolor: "#152038",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                     },
                   }}
                 >

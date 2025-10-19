@@ -89,3 +89,112 @@ export async function createContract(data: {
 
   return contract;
 }
+
+export async function createContractWithFiles(formData: FormData) {
+  const session = await auth();
+
+  if (!session?.user) {
+    throw new Error("Não autorizado");
+  }
+
+  const trpc = await createCaller({ session });
+
+  // Helper to get string value or undefined (not null)
+  const getStringOrUndefined = (key: string): string | undefined => {
+    const value = formData.get(key);
+    return value ? (value as string) : undefined;
+  };
+
+  // Extract contract data
+  const contractData = {
+    orgId: formData.get("orgId") as string,
+    title: formData.get("title") as string,
+    contractType: formData.get("contractType") as any,
+    counterpartyName: formData.get("counterpartyName") as string,
+    counterpartyContact: getStringOrUndefined("counterpartyContact"),
+    ownerUserId: formData.get("ownerUserId") as string,
+    startDate: new Date(formData.get("startDate") as string),
+    endDate: formData.get("endDate")
+      ? new Date(formData.get("endDate") as string)
+      : undefined,
+    periodicity: formData.get("periodicity") as any,
+    customDays: formData.get("customDays")
+      ? parseInt(formData.get("customDays") as string)
+      : undefined,
+    autoRenew: formData.get("autoRenew") === "true",
+    valueAmount: parseFloat(formData.get("valueAmount") as string),
+    adjustmentType: formData.get("adjustmentType") as any,
+    adjustmentValue: formData.get("adjustmentValue")
+      ? parseFloat(formData.get("adjustmentValue") as string)
+      : undefined,
+    costCenter: getStringOrUndefined("costCenter"),
+    tags:
+      getStringOrUndefined("tags")
+        ?.split(",")
+        .map((t) => t.trim())
+        .filter(Boolean) || [],
+    notes: getStringOrUndefined("notes"),
+  };
+
+  let contract;
+
+  try {
+    // Create contract
+    contract = await trpc.contract.create(contractData);
+
+    // Upload files if any
+    const files = formData.getAll("files") as File[];
+    if (files && files.length > 0) {
+      const crypto = await import("crypto");
+
+      for (const file of files) {
+        if (file.size > 0) {
+          // Skip empty files
+          // Convert file to base64
+          const arrayBuffer = await file.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          const fileContent = buffer.toString("base64");
+
+          // Calculate checksum
+          const checksum = crypto
+            .createHash("md5")
+            .update(buffer)
+            .digest("hex");
+
+          // Upload file - if this fails, we need to rollback
+          await trpc.file.uploadFile({
+            orgId: contractData.orgId,
+            contractId: contract.id,
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: "ATTACHMENT",
+            mimeType: file.type || "application/octet-stream",
+            fileContent,
+            checksum,
+          });
+        }
+      }
+    }
+
+    return contract;
+  } catch (error) {
+    // If contract was created but file upload failed, delete the contract (rollback)
+    if (contract?.id) {
+      try {
+        await trpc.contract.delete({
+          orgId: contractData.orgId,
+          id: contract.id,
+        });
+        console.log(
+          "Contract rolled back successfully due to file upload error"
+        );
+      } catch (deleteError) {
+        console.error("Failed to rollback contract creation:", deleteError);
+        // Log but don't throw - we want the original error to be thrown
+      }
+    }
+
+    // Re-throw the original error so user sees the actual problem
+    throw error;
+  }
+}
