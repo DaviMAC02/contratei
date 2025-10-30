@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { sendEmail } from "./email";
+import { sendEmail, emailTemplates } from "./email";
 import { hasPlanFeature, type PlanName } from "./stripe";
 import type { AlertEventType, NotificationChannel } from "@prisma/client";
 
@@ -81,30 +81,91 @@ export async function createAlert(params: CreateAlertParams) {
         });
 
         if (user?.email) {
-          await sendEmail({
-            to: user.email,
-            subject: title,
-            html: `
-              <h2>${title}</h2>
-              <p>${message}</p>
-              ${
-                metadata?.contractTitle
-                  ? `<p><strong>Contrato:</strong> ${metadata.contractTitle}</p>`
-                  : ""
-              }
-              ${
-                metadata?.contractEndDate
-                  ? `<p><strong>Data de Vencimento:</strong> ${new Date(
-                      metadata.contractEndDate
-                    ).toLocaleDateString("pt-BR")}</p>`
-                  : ""
-              }
-              <br>
-              <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/contracts/${
+          // Use styled templates per event type
+          if (eventType === "RENEWAL_REMINDER") {
+            const contractUrl = `${process.env.NEXT_PUBLIC_APP_URL}/contracts/${
               metadata?.contractId || ""
-            }">Ver contrato</a></p>
-            `,
-          });
+            }`;
+            const subject = emailTemplates.renewalReminder["pt-BR"].subject();
+            const html = emailTemplates.renewalReminder["pt-BR"].getHtml(
+              metadata?.contractTitle || "Contrato",
+              metadata?.previousEndDate ||
+                metadata?.contractEndDate ||
+                new Date(),
+              metadata?.newEndDate || metadata?.contractEndDate || new Date(),
+              contractUrl
+            );
+
+            await sendEmail({
+              to: user.email,
+              subject,
+              html,
+            });
+          } else if (eventType === "CONTRACT_DUE_SOON") {
+            const days = Number(metadata?.daysBefore ?? 0);
+            const subject =
+              emailTemplates.contractDueSoon["pt-BR"].subject(days);
+            const html = emailTemplates.contractDueSoon["pt-BR"].getHtml(
+              metadata?.contractTitle || "Contrato",
+              metadata?.counterpartyName || "",
+              metadata?.contractEndDate
+                ? new Date(metadata.contractEndDate).toLocaleDateString("pt-BR")
+                : new Date().toLocaleDateString("pt-BR"),
+              days
+            );
+
+            await sendEmail({ to: user.email, subject, html });
+          } else if (eventType === "CONTRACT_EXPIRED") {
+            const subject = emailTemplates.contractExpired["pt-BR"].subject;
+            const html = emailTemplates.contractExpired["pt-BR"].getHtml(
+              metadata?.contractTitle || "Contrato",
+              metadata?.counterpartyName || ""
+            );
+
+            await sendEmail({ to: user.email, subject, html });
+          } else if (eventType === "ADJUSTMENT_APPLIED") {
+            const subject = emailTemplates.adjustmentApplied["pt-BR"].subject;
+            const formatBRL = (cents: string | number) =>
+              new Intl.NumberFormat("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+              }).format(Number(cents) / 100);
+
+            const html = emailTemplates.adjustmentApplied["pt-BR"].getHtml(
+              metadata?.contractTitle || "Contrato",
+              String(metadata?.adjustmentPercentage ?? ""),
+              formatBRL(String(metadata?.previousValue ?? "0")),
+              formatBRL(String(metadata?.newValue ?? "0"))
+            );
+
+            await sendEmail({ to: user.email, subject, html });
+          } else {
+            // Generic fallback email
+            await sendEmail({
+              to: user.email,
+              subject: title,
+              html: `
+                <h2>${title}</h2>
+                <p>${message}</p>
+                ${
+                  metadata?.contractTitle
+                    ? `<p><strong>Contrato:</strong> ${metadata.contractTitle}</p>`
+                    : ""
+                }
+                ${
+                  metadata?.contractEndDate
+                    ? `<p><strong>Data de Vencimento:</strong> ${new Date(
+                        metadata.contractEndDate
+                      ).toLocaleDateString("pt-BR")}</p>`
+                    : ""
+                }
+                <br>
+                <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/contracts/${
+                metadata?.contractId || ""
+              }">Ver contrato</a></p>
+              `,
+            });
+          }
 
           await prisma.notification.update({
             where: { id: notification.id },
@@ -125,6 +186,19 @@ export async function createAlert(params: CreateAlertParams) {
   }
 
   return notifications;
+}
+
+/**
+ * Collect recipients: contract owner + org OWNERS and ADMINS (unique)
+ */
+async function getAlertRecipients(orgId: string, defaultUserId: string) {
+  const members = await prisma.orgMember.findMany({
+    where: { orgId, role: { in: ["OWNER", "ADMIN"] } },
+    select: { userId: true },
+  });
+  const ids = new Set<string>([defaultUserId]);
+  for (const m of members) ids.add(m.userId);
+  return Array.from(ids);
 }
 
 /**
@@ -189,23 +263,30 @@ export async function checkExpiringContracts() {
         });
 
         for (const contract of contracts) {
-          await createAlert({
-            orgId: org.id,
-            userId: contract.ownerUserId,
-            eventType: "CONTRACT_DUE_SOON",
-            title: `Contrato vencendo em ${daysBefore} dias`,
-            message: `O contrato "${contract.title}" com ${
-              contract.counterpartyName
-            } vence em ${daysBefore} dias (${new Date(
-              contract.nextRenewalDate!
-            ).toLocaleDateString("pt-BR")}).`,
-            metadata: {
-              contractId: contract.id,
-              contractTitle: contract.title,
-              contractEndDate: contract.nextRenewalDate,
-              daysBefore,
-            },
-          });
+          const recipients = await getAlertRecipients(
+            org.id,
+            contract.ownerUserId
+          );
+          for (const recipientId of recipients) {
+            await createAlert({
+              orgId: org.id,
+              userId: recipientId,
+              eventType: "CONTRACT_DUE_SOON",
+              title: `Contrato vencendo em ${daysBefore} dias`,
+              message: `O contrato "${contract.title}" com ${
+                contract.counterpartyName
+              } vence em ${daysBefore} dias (${new Date(
+                contract.nextRenewalDate!
+              ).toLocaleDateString("pt-BR")}).`,
+              metadata: {
+                contractId: contract.id,
+                contractTitle: contract.title,
+                contractEndDate: contract.nextRenewalDate,
+                counterpartyName: contract.counterpartyName,
+                daysBefore,
+              },
+            });
+          }
 
           // Update lastAlertSentAt
           await prisma.contract.update({
@@ -232,7 +313,7 @@ export async function checkContractsForAdjustment() {
   const orgs = await prisma.org.findMany({
     where: {
       plan: {
-        in: ["GROWTH", "PRO", "STUDIO"], // Only plans with automatic adjustments
+        in: ["GROWTH", "PRO", "STUDIO"],
       },
     },
     select: { id: true, plan: true },
@@ -313,25 +394,31 @@ export async function checkContractsForAdjustment() {
           },
         });
 
-        // Send alert
-        await createAlert({
-          orgId: org.id,
-          userId: contract.ownerUserId,
-          eventType: "ADJUSTMENT_DUE",
-          title: "Reajuste automático aplicado",
-          message: `O contrato "${
-            contract.title
-          }" teve reajuste automático de ${adjustmentPercentage.toFixed(
-            2
-          )}% aplicado. Novo valor: ${newValue.toString()}.`,
-          metadata: {
-            contractId: contract.id,
-            contractTitle: contract.title,
-            previousValue: contract.valueAmount.toString(),
-            newValue: newValue.toString(),
-            adjustmentPercentage,
-          },
-        });
+        // Send alerts (reajuste aplicado) to owner + org owners/admins
+        const recipients = await getAlertRecipients(
+          org.id,
+          contract.ownerUserId
+        );
+        for (const recipientId of recipients) {
+          await createAlert({
+            orgId: org.id,
+            userId: recipientId,
+            eventType: "ADJUSTMENT_APPLIED",
+            title: "Reajuste automático aplicado",
+            message: `O contrato "${
+              contract.title
+            }" teve reajuste automático de ${adjustmentPercentage.toFixed(
+              2
+            )}% aplicado. Novo valor: ${newValue.toString()}.`,
+            metadata: {
+              contractId: contract.id,
+              contractTitle: contract.title,
+              previousValue: contract.valueAmount.toString(),
+              newValue: newValue.toString(),
+              adjustmentPercentage,
+            },
+          });
+        }
 
         processedCount++;
       }
@@ -388,22 +475,20 @@ export async function processAutomaticRenewals() {
       });
 
       for (const contract of contracts) {
-        // Calculate new end date based on periodicity
-        let newEndDate = new Date(contract.nextRenewalDate!);
-
-        switch (contract.periodicity) {
-          case "MONTHLY":
-            newEndDate.setMonth(newEndDate.getMonth() + 1);
-            break;
-          case "YEARLY":
-            newEndDate.setFullYear(newEndDate.getFullYear() + 1);
-            break;
-          case "CUSTOM_DAYS":
-            if (contract.customDays) {
-              newEndDate.setDate(newEndDate.getDate() + contract.customDays);
-            }
-            break;
-        }
+        // Calculate new end date based on original contract duration (no periodicity)
+        const prevEnd = new Date(contract.nextRenewalDate!);
+        const durationDays = contract.periodicityDays
+          ? Number(contract.periodicityDays)
+          : Math.max(
+              1,
+              Math.round(
+                ((contract.endDate || contract.nextRenewalDate)!.getTime() -
+                  contract.startDate.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              )
+            );
+        const newEndDate = new Date(prevEnd);
+        newEndDate.setDate(newEndDate.getDate() + durationDays);
 
         // Create renewal history record
         await prisma.renewalHistory.create({
@@ -427,24 +512,30 @@ export async function processAutomaticRenewals() {
           },
         });
 
-        // Send alert
-        await createAlert({
-          orgId: org.id,
-          userId: contract.ownerUserId,
-          eventType: "RENEWAL_REMINDER",
-          title: "Contrato renovado automaticamente",
-          message: `O contrato "${
-            contract.title
-          }" foi renovado automaticamente. Nova data de vencimento: ${newEndDate.toLocaleDateString(
-            "pt-BR"
-          )}.`,
-          metadata: {
-            contractId: contract.id,
-            contractTitle: contract.title,
-            previousEndDate: contract.endDate,
-            newEndDate,
-          },
-        });
+        // Send alerts to owner + org owners/admins
+        const recipients = await getAlertRecipients(
+          org.id,
+          contract.ownerUserId
+        );
+        for (const recipientId of recipients) {
+          await createAlert({
+            orgId: org.id,
+            userId: recipientId,
+            eventType: "RENEWAL_REMINDER",
+            title: "Contrato renovado automaticamente",
+            message: `O contrato "${
+              contract.title
+            }" foi renovado automaticamente. Nova data de vencimento: ${newEndDate.toLocaleDateString(
+              "pt-BR"
+            )}.`,
+            metadata: {
+              contractId: contract.id,
+              contractTitle: contract.title,
+              previousEndDate: contract.endDate,
+              newEndDate,
+            },
+          });
+        }
 
         processedCount++;
       }

@@ -43,8 +43,6 @@ export async function createContract(data: {
   ownerUserId: string;
   startDate: string;
   endDate?: string;
-  periodicity: string;
-  customDays?: number;
   autoRenew: boolean;
   valueAmount: number;
   adjustmentType: string;
@@ -70,8 +68,6 @@ export async function createContract(data: {
     ownerUserId: data.ownerUserId,
     startDate: new Date(data.startDate),
     endDate: data.endDate ? new Date(data.endDate) : undefined,
-    periodicity: data.periodicity as any,
-    customDays: data.customDays,
     autoRenew: data.autoRenew,
     valueAmount: data.valueAmount,
     adjustmentType: data.adjustmentType as any,
@@ -116,10 +112,6 @@ export async function createContractWithFiles(formData: FormData) {
     startDate: new Date(formData.get("startDate") as string),
     endDate: formData.get("endDate")
       ? new Date(formData.get("endDate") as string)
-      : undefined,
-    periodicity: formData.get("periodicity") as any,
-    customDays: formData.get("customDays")
-      ? parseInt(formData.get("customDays") as string)
       : undefined,
     autoRenew: formData.get("autoRenew") === "true",
     valueAmount: parseFloat(formData.get("valueAmount") as string),

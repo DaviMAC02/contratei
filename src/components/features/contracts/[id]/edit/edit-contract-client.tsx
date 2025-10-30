@@ -136,6 +136,10 @@ export default function EditContractClient({
         costCenter: (formData.get("costCenter") as string) || undefined,
         tags: (formData.get("tags") as string) || undefined,
         notes: (formData.get("notes") as string) || undefined,
+        nextRenewalDate: (formData.get("nextRenewalDate") as string) || undefined,
+        periodicityDays: formData.get("periodicityDays")
+          ? Number(formData.get("periodicityDays"))
+          : undefined,
       });
 
       router.push(`/contracts/${contractId}`);
@@ -272,6 +276,36 @@ export default function EditContractClient({
                       ? new Date(contract.endDate).toISOString().split("T")[0]
                       : ""
                   }
+                />
+
+                <TextField
+                  id="nextRenewalDate"
+                  name="nextRenewalDate"
+                  label="Próxima Renovação"
+                  type="date"
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  defaultValue={
+                    contract.nextRenewalDate
+                      ? new Date(contract.nextRenewalDate)
+                          .toISOString()
+                          .split("T")[0]
+                      : ""
+                  }
+                  helperText="Se vazio, será calculada automaticamente"
+                />
+
+                <TextField
+                  id="periodicityDays"
+                  name="periodicityDays"
+                  label="Periodicidade (dias)"
+                  type="number"
+                  inputProps={{ min: 1 }}
+                  fullWidth
+                  size="small"
+                  defaultValue={contract.periodicityDays || ""}
+                  helperText="Intervalo utilizado para renovação automática"
                 />
 
                 <Box

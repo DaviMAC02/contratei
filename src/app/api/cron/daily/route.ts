@@ -8,7 +8,6 @@ import {
 
 export const runtime = "nodejs";
 
-// Secure this endpoint with a secret
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
 

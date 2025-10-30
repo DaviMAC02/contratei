@@ -88,7 +88,6 @@ export default function NewContractClient({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [formData, setFormData] = useState<any>({
     contractType: "OUTBOUND",
-    periodicity: "MONTHLY",
     autoRenew: false,
     adjustmentType: "NONE",
   });
@@ -157,10 +156,6 @@ export default function NewContractClient({
       submitFormData.append("startDate", formData.startDate);
       if (formData.endDate) {
         submitFormData.append("endDate", formData.endDate);
-      }
-      submitFormData.append("periodicity", formData.periodicity);
-      if (formData.customDays) {
-        submitFormData.append("customDays", formData.customDays.toString());
       }
       submitFormData.append("autoRenew", formData.autoRenew.toString());
       submitFormData.append("valueAmount", formData.valueAmount.toString());
@@ -450,55 +445,7 @@ export default function NewContractClient({
                 </Box>
               </Box>
 
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                  gap: 2,
-                }}
-              >
-                <FormControl fullWidth required>
-                  <InputLabel>Periodicidade</InputLabel>
-                  <Select
-                    value={formData.periodicity || "MONTHLY"}
-                    onChange={(e) =>
-                      handleStepData({ periodicity: e.target.value })
-                    }
-                    label="Periodicidade"
-                    sx={{ borderRadius: "8px" }}
-                    MenuProps={{
-                      PaperProps: {
-                        sx: {
-                          maxHeight: 300,
-                          mt: 1,
-                          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                          borderRadius: "8px",
-                        },
-                      },
-                    }}
-                  >
-                    <MenuItem value="MONTHLY">Mensal</MenuItem>
-                    <MenuItem value="YEARLY">Anual</MenuItem>
-                    <MenuItem value="CUSTOM_DAYS">Dias Personalizados</MenuItem>
-                  </Select>
-                </FormControl>
-                <TextField
-                  label="Dias (se personalizado)"
-                  type="number"
-                  inputProps={{ min: 1 }}
-                  value={formData.customDays || ""}
-                  onChange={(e) =>
-                    handleStepData({ customDays: e.target.value })
-                  }
-                  fullWidth
-                  placeholder="30"
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: "8px",
-                    },
-                  }}
-                />
-              </Box>
+              {/* Periodicidade removida: usamos Data de término + Renovação automática */}
 
               <FormControl fullWidth>
                 <InputLabel>Renovação Automática</InputLabel>
@@ -801,7 +748,7 @@ export default function NewContractClient({
           formData.title && formData.counterpartyName && formData.ownerUserId
         );
       case 1:
-        return formData.startDate && formData.periodicity;
+        return !!formData.startDate;
       case 2:
         // Valida se valueAmount existe e é um número válido (incluindo 0)
         return (

@@ -8,13 +8,8 @@ import {
   createAuditLog,
 } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import {
-  ContractStatus,
-  Periodicity,
-  AdjustmentType,
-  OrgRole,
-} from "@prisma/client";
-import { addDays, addMonths, addYears } from "date-fns";
+import { ContractStatus, AdjustmentType, OrgRole } from "@prisma/client";
+import { addDays, differenceInCalendarDays } from "date-fns";
 
 // Helper to validate org membership
 async function validateOrgMembership(
@@ -44,22 +39,15 @@ async function validateOrgMembership(
   return { org: membership.org, membership, userRole: membership.role };
 }
 
-// Helper to calculate next renewal date
-function calculateNextRenewalDate(
-  startDate: Date,
-  periodicity: Periodicity,
-  customDays?: number | null
-): Date {
-  switch (periodicity) {
-    case "MONTHLY":
-      return addMonths(startDate, 1);
-    case "YEARLY":
-      return addYears(startDate, 1);
-    case "CUSTOM_DAYS":
-      return addDays(startDate, customDays || 30);
-    default:
-      return addYears(startDate, 1);
-  }
+// Helper to calculate next renewal date from start/end (no periodicity)
+function calculateNextRenewalDateFromRange(
+  startDate?: Date | null,
+  endDate?: Date | null
+): Date | null {
+  if (endDate) return endDate;
+  if (!startDate) return null;
+  // Default to 1 year (365 days)
+  return addDays(startDate, 365);
 }
 
 // Helper to determine contract status
@@ -235,8 +223,8 @@ export const contractRouter = createTRPCRouter({
         notes: z.string().optional(),
         startDate: z.date(),
         endDate: z.date().optional(),
-        periodicity: z.nativeEnum(Periodicity),
-        customDays: z.number().optional(),
+        // periodicityDays computed if not provided
+        periodicityDays: z.number().int().positive().optional(),
         autoRenew: z.boolean().default(true),
         valueAmount: z.number().positive(),
         adjustmentType: z.nativeEnum(AdjustmentType).default("NONE"),
@@ -290,11 +278,19 @@ export const contractRouter = createTRPCRouter({
         });
       }
 
-      const nextRenewalDate = calculateNextRenewalDate(
+      const nextRenewalDate = calculateNextRenewalDateFromRange(
         input.startDate,
-        input.periodicity,
-        input.customDays
+        input.endDate || null
       );
+
+      const computedPeriodicityDays = input.periodicityDays
+        ? input.periodicityDays
+        : input.endDate
+        ? Math.max(
+            1,
+            differenceInCalendarDays(input.endDate, input.startDate)
+          )
+        : 365;
 
       const status = determineContractStatus(
         input.endDate || null,
@@ -317,8 +313,7 @@ export const contractRouter = createTRPCRouter({
           startDate: input.startDate,
           endDate: input.endDate,
           nextRenewalDate,
-          periodicity: input.periodicity,
-          customDays: input.customDays,
+          periodicityDays: computedPeriodicityDays,
           autoRenew: input.autoRenew,
           valueAmount: input.valueAmount,
           currency: org.currency,
@@ -360,6 +355,8 @@ export const contractRouter = createTRPCRouter({
         autoRenew: z.boolean().optional(),
         adjustmentType: z.nativeEnum(AdjustmentType).optional(),
         adjustmentValue: z.number().optional(),
+        nextRenewalDate: z.date().optional(),
+        periodicityDays: z.number().int().positive().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -427,16 +424,20 @@ export const contractRouter = createTRPCRouter({
       }
 
       const previousEndDate = contract.nextRenewalDate || contract.endDate!;
-      const newEndDate = calculateNextRenewalDate(
-        previousEndDate,
-        contract.periodicity,
-        contract.customDays
-      );
+      // Determine duration from original range; fallback to 365 days
+      const durationDays = contract.endDate && contract.startDate
+        ? Math.max(
+            1,
+            differenceInCalendarDays(contract.endDate, contract.startDate)
+          )
+        : 365;
+      const newEndDate = addDays(previousEndDate, durationDays);
 
       const [updated] = await ctx.prisma.$transaction([
         ctx.prisma.contract.update({
           where: { id: input.id },
           data: {
+            endDate: newEndDate,
             nextRenewalDate: newEndDate,
             status: "ACTIVE",
           },

@@ -58,6 +58,8 @@ export async function updateContract(data: {
   counterpartyContact?: string;
   ownerUserId: string;
   endDate?: string;
+  nextRenewalDate?: string;
+  periodicityDays?: number;
   autoRenew: boolean;
   adjustmentType: string;
   adjustmentValue?: number;
@@ -87,6 +89,10 @@ export async function updateContract(data: {
     counterpartyContact: data.counterpartyContact,
     ownerUserId: data.ownerUserId,
     endDate: data.endDate ? new Date(data.endDate) : undefined,
+    nextRenewalDate: data.nextRenewalDate
+      ? new Date(data.nextRenewalDate)
+      : undefined,
+    periodicityDays: data.periodicityDays,
     autoRenew: data.autoRenew,
     adjustmentType: data.adjustmentType as any,
     adjustmentValue: data.adjustmentValue,

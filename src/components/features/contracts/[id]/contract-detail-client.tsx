@@ -26,6 +26,10 @@ import {
   Alert,
   CircularProgress,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { useTranslation } from "@/lib/use-translation";
@@ -81,7 +85,10 @@ export default function ContractDetailClient({
   const toast = useToast();
 
   const [isRenewing, setIsRenewing] = useState(false);
+  const [renewModalOpen, setRenewModalOpen] = useState(false);
+  const [showRenewedChip, setShowRenewedChip] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(
     null
@@ -99,37 +106,33 @@ export default function ContractDetailClient({
   const currentPlan = org?.plan ? PLANS[org.plan as keyof typeof PLANS] : null;
   const canUploadFiles = currentPlan?.features.fileUpload ?? false;
 
-  const handleRenew = async () => {
-    if (confirm("Deseja renovar este contrato?")) {
-      setIsRenewing(true);
-      try {
-        await renewContract(contractId);
-        toast.showSuccess("Contrato renovado com sucesso!");
-        router.refresh();
-      } catch (error) {
-        toast.showError(error, "contract");
-      } finally {
-        setIsRenewing(false);
-      }
+  const openRenewModal = () => setRenewModalOpen(true);
+  const closeRenewModal = () => setRenewModalOpen(false);
+
+  const handleConfirmRenew = async () => {
+    setIsRenewing(true);
+    try {
+      await renewContract(contractId);
+      setShowRenewedChip(true);
+      router.refresh();
+    } catch (error) {
+      toast.showError(error, "contract");
+    } finally {
+      setIsRenewing(false);
+      closeRenewModal();
     }
   };
 
-  const handleDelete = async () => {
-    if (
-      confirm(
-        "Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita."
-      )
-    ) {
-      setIsDeleting(true);
-      try {
-        await deleteContract(contractId);
-        toast.showSuccess("Contrato excluído com sucesso!");
-        router.push("/contracts");
-        router.refresh();
-      } catch (error) {
-        toast.showError(error, "contract");
-        setIsDeleting(false);
-      }
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteContract(contractId);
+      router.push("/contracts");
+      router.refresh();
+    } catch (error) {
+      setIsDeleting(false);
+    } finally {
+      setDeleteModalOpen(false);
     }
   };
 
@@ -316,7 +319,7 @@ export default function ContractDetailClient({
         <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
           <Button
             variant="outlined"
-            onClick={handleRenew}
+            onClick={openRenewModal}
             disabled={isRenewing}
             startIcon={<RefreshCw style={{ width: 18, height: 18 }} />}
             sx={{
@@ -334,6 +337,14 @@ export default function ContractDetailClient({
           >
             Renovar
           </Button>
+          {showRenewedChip && (
+            <Chip
+              label="Contrato renovado"
+              color="success"
+              size="small"
+              sx={{ fontWeight: 600 }}
+            />
+          )}
           <Link href={`/contracts/${contractId}/edit`}>
             <Button
               variant="outlined"
@@ -356,7 +367,7 @@ export default function ContractDetailClient({
           </Link>
           <Button
             variant="outlined"
-            onClick={handleDelete}
+            onClick={() => setDeleteModalOpen(true)}
             disabled={isDeleting}
             startIcon={<Trash2 style={{ width: 18, height: 18 }} />}
             sx={{
@@ -509,25 +520,7 @@ export default function ContractDetailClient({
                   </Typography>
                 </Box>
               )}
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <Typography variant="body2" sx={{ color: "#6b7280" }}>
-                  Periodicidade:
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{ fontWeight: 500, color: "#111827", textAlign: "right" }}
-                >
-                  {t(
-                    `periodicity.${contract.periodicity.toLowerCase()}` as any
-                  )}
-                </Typography>
-              </Box>
+              {/* Periodicidade removida (dependemos de data de término + renovação automática) */}
               <Box
                 sx={{
                   display: "flex",
@@ -1082,6 +1075,53 @@ export default function ContractDetailClient({
           {errorToast}
         </Alert>
       </Snackbar>
+
+      {/* Renovation Modal */}
+      <Dialog open={renewModalOpen} onClose={closeRenewModal} fullWidth maxWidth="sm">
+        <DialogTitle>Confirmar renovação</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ color: "#374151" }}>
+            Deseja renovar este contrato e avançar a data de término pelo mesmo
+            período do contrato original?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeRenewModal} variant="text" sx={{ textTransform: "none" }}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirmRenew}
+            variant="contained"
+            disabled={isRenewing}
+            sx={{ textTransform: "none", backgroundColor: "#1d2b48", "&:hover": { backgroundColor: "#162039" } }}
+          >
+            {isRenewing ? <CircularProgress size={16} sx={{ color: "white" }} /> : "Confirmar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Modal */}
+      <Dialog open={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Excluir contrato</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ color: "#374151" }}>
+            Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteModalOpen(false)} variant="text" sx={{ textTransform: "none" }}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            variant="contained"
+            disabled={isDeleting}
+            sx={{ textTransform: "none", backgroundColor: "#ef4444", "&:hover": { backgroundColor: "#dc2626" } }}
+          >
+            {isDeleting ? <CircularProgress size={16} sx={{ color: "white" }} /> : "Excluir"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Success Toast */}
       <Snackbar

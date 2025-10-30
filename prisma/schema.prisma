@@ -243,11 +243,6 @@ enum ContractStatus {
   CANCELED
 }
 
-enum Periodicity {
-  MONTHLY
-  YEARLY
-  CUSTOM_DAYS
-}
 
 enum AdjustmentType {
   NONE
@@ -278,8 +273,8 @@ model Contract {
   startDate       DateTime
   endDate         DateTime?
   nextRenewalDate DateTime?
-  periodicity     Periodicity
-  customDays      Int? // for CUSTOM_DAYS periodicity
+  // New: controls autorenewal interval in days (mandatory)
+  periodicityDays Int
   autoRenew       Boolean     @default(true)
 
   // Alerts & Notifications
