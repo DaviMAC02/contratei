@@ -67,7 +67,6 @@ export default function OnboardingPage() {
     counterpartyName: "",
     startDate: "",
     valueAmount: "",
-    periodicity: "MONTHLY" as const,
   });
   const [alertSettings, setAlertSettings] = useState({
     alert90: true,
@@ -137,14 +136,15 @@ export default function OnboardingPage() {
     if (!currentOrgId) return;
 
     if (contractData.title && contractData.counterpartyName) {
+      const [y, m, d] = (contractData.startDate || "").split("-").map((n) => parseInt(n, 10));
+      const start = y && m && d ? new Date(y, m - 1, d) : new Date();
       await createContractMutation.mutateAsync({
         orgId: currentOrgId,
         title: contractData.title,
         counterpartyName: contractData.counterpartyName,
         ownerUserId: "", // Will be set on server
-        startDate: new Date(contractData.startDate),
+        startDate: start,
         valueAmount: Number(contractData.valueAmount),
-        periodicity: contractData.periodicity,
         autoRenew: true,
       });
     }
@@ -741,22 +741,7 @@ export default function OnboardingPage() {
                   />
                 </Box>
 
-                <FormControl fullWidth>
-                  <InputLabel>Periodicidade</InputLabel>
-                  <Select
-                    value={contractData.periodicity}
-                    onChange={(e) =>
-                      setContractData({
-                        ...contractData,
-                        periodicity: e.target.value as any,
-                      })
-                    }
-                    label="Periodicidade"
-                  >
-                    <MenuItem value="MONTHLY">Mensal</MenuItem>
-                    <MenuItem value="YEARLY">Anual</MenuItem>
-                  </Select>
-                </FormControl>
+                {/* Periodicidade removida: backend calculará periodicityDays automaticamente */}
               </Box>
 
               <Box sx={{ display: "flex", justifyContent: "space-between" }}>
