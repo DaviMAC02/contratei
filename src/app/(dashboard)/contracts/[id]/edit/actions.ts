@@ -80,6 +80,12 @@ export async function updateContract(data: {
   const orgId = session.selectedOrgId;
   const trpc = await createCaller({ session });
 
+  const parseDateOnly = (ymd?: string) => {
+    if (!ymd) return undefined as any;
+    const [y, m, d] = ymd.split("-").map((n) => parseInt(n, 10));
+    return new Date(y, m - 1, d);
+  };
+
   const updateData = {
     orgId,
     id: data.contractId,
@@ -88,9 +94,9 @@ export async function updateContract(data: {
     counterpartyName: data.counterpartyName,
     counterpartyContact: data.counterpartyContact,
     ownerUserId: data.ownerUserId,
-    endDate: data.endDate ? new Date(data.endDate) : undefined,
+    endDate: data.endDate ? parseDateOnly(data.endDate) : undefined,
     nextRenewalDate: data.nextRenewalDate
-      ? new Date(data.nextRenewalDate)
+      ? parseDateOnly(data.nextRenewalDate)
       : undefined,
     periodicityDays: data.periodicityDays,
     autoRenew: data.autoRenew,

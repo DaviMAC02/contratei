@@ -337,14 +337,7 @@ export default function ContractDetailClient({
           >
             Renovar
           </Button>
-          {showRenewedChip && (
-            <Chip
-              label="Contrato renovado"
-              color="success"
-              size="small"
-              sx={{ fontWeight: 600 }}
-            />
-          )}
+
           <Link href={`/contracts/${contractId}/edit`}>
             <Button
               variant="outlined"
@@ -1077,7 +1070,12 @@ export default function ContractDetailClient({
       </Snackbar>
 
       {/* Renovation Modal */}
-      <Dialog open={renewModalOpen} onClose={closeRenewModal} fullWidth maxWidth="sm">
+      <Dialog
+        open={renewModalOpen}
+        onClose={closeRenewModal}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>Confirmar renovação</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ color: "#374151" }}>
@@ -1086,39 +1084,69 @@ export default function ContractDetailClient({
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeRenewModal} variant="text" sx={{ textTransform: "none" }}>
+          <Button
+            onClick={closeRenewModal}
+            variant="text"
+            sx={{ textTransform: "none" }}
+          >
             Cancelar
           </Button>
           <Button
             onClick={handleConfirmRenew}
             variant="contained"
             disabled={isRenewing}
-            sx={{ textTransform: "none", backgroundColor: "#1d2b48", "&:hover": { backgroundColor: "#162039" } }}
+            sx={{
+              textTransform: "none",
+              backgroundColor: "#1d2b48",
+              "&:hover": { backgroundColor: "#162039" },
+            }}
           >
-            {isRenewing ? <CircularProgress size={16} sx={{ color: "white" }} /> : "Confirmar"}
+            {isRenewing ? (
+              <CircularProgress size={16} sx={{ color: "white" }} />
+            ) : (
+              "Confirmar"
+            )}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Delete Modal */}
-      <Dialog open={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} fullWidth maxWidth="sm">
+      <Dialog
+        open={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>Excluir contrato</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ color: "#374151" }}>
-            Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.
+            Tem certeza que deseja excluir este contrato? Esta ação não pode ser
+            desfeita.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteModalOpen(false)} variant="text" sx={{ textTransform: "none" }}>
+          <Button
+            onClick={() => setDeleteModalOpen(false)}
+            variant="text"
+            sx={{ textTransform: "none" }}
+          >
             Cancelar
           </Button>
           <Button
             onClick={handleConfirmDelete}
             variant="contained"
             disabled={isDeleting}
-            sx={{ textTransform: "none", backgroundColor: "#ef4444", "&:hover": { backgroundColor: "#dc2626" } }}
+            sx={{
+              textTransform: "none",
+              backgroundColor: "#ef4444",
+              "&:hover": { backgroundColor: "#dc2626" },
+            }}
           >
-            {isDeleting ? <CircularProgress size={16} sx={{ color: "white" }} /> : "Excluir"}
+            {isDeleting ? (
+              <CircularProgress size={16} sx={{ color: "white" }} />
+            ) : (
+              "Excluir"
+            )}
           </Button>
         </DialogActions>
       </Dialog>

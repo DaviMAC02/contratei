@@ -4,6 +4,14 @@ import { auth } from "@/lib/auth";
 import { createCaller } from "@/server/root";
 import { redirect } from "next/navigation";
 
+// Parse a YYYY-MM-DD into a local Date (avoids TZ shifting by the Date constructor)
+function parseDateOnly(ymd?: string | null): Date | undefined {
+  if (!ymd) return undefined;
+  const [y, m, d] = (ymd as string).split("-").map((n) => parseInt(n, 10));
+  if (!y || !m || !d) return undefined;
+  return new Date(y, m - 1, d);
+}
+
 export async function getNewContractData(searchParams?: { orgId?: string }) {
   const session = await auth();
 
@@ -66,8 +74,8 @@ export async function createContract(data: {
     counterpartyName: data.counterpartyName,
     counterpartyContact: data.counterpartyContact,
     ownerUserId: data.ownerUserId,
-    startDate: new Date(data.startDate),
-    endDate: data.endDate ? new Date(data.endDate) : undefined,
+    startDate: parseDateOnly(data.startDate)!,
+    endDate: data.endDate ? parseDateOnly(data.endDate) : undefined,
     autoRenew: data.autoRenew,
     valueAmount: data.valueAmount,
     adjustmentType: data.adjustmentType as any,
@@ -109,9 +117,9 @@ export async function createContractWithFiles(formData: FormData) {
     counterpartyName: formData.get("counterpartyName") as string,
     counterpartyContact: getStringOrUndefined("counterpartyContact"),
     ownerUserId: formData.get("ownerUserId") as string,
-    startDate: new Date(formData.get("startDate") as string),
+    startDate: parseDateOnly(formData.get("startDate") as string)!,
     endDate: formData.get("endDate")
-      ? new Date(formData.get("endDate") as string)
+      ? parseDateOnly(formData.get("endDate") as string)
       : undefined,
     autoRenew: formData.get("autoRenew") === "true",
     valueAmount: parseFloat(formData.get("valueAmount") as string),
