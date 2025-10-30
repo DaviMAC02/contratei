@@ -28,8 +28,6 @@ import {
   Tab,
   CircularProgress,
   Backdrop,
-  Snackbar,
-  Alert,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { useTranslation } from "@/lib/use-translation";
@@ -118,7 +116,7 @@ function ContractsClientInner({
     () => searchParams?.get("status") || initialStatus || ""
   );
 
-  // Snackbar state for error messages
+  // Inline chip feedback
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Keep a ref for pagination cursors so we don't trigger rerenders by updating arrays
@@ -864,29 +862,17 @@ function ContractsClientInner({
         />
       )}
 
-      {/* Error Snackbar */}
-      <Snackbar
-        open={!!errorMessage}
-        autoHideDuration={6000}
-        onClose={() => setErrorMessage(null)}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setErrorMessage(null)}
-          severity="error"
-          sx={{
-            width: "100%",
-            bgcolor: "#ef4444",
-            color: "white",
-            fontSize: "1rem",
-            "& .MuiAlert-icon": {
-              color: "white",
-            },
-          }}
-        >
-          {errorMessage}
-        </Alert>
-      </Snackbar>
+      {/* Error Chip */}
+      {errorMessage && (
+        <Box sx={{ position: "fixed", top: 16, right: 16 }}>
+          <Chip
+            label={errorMessage}
+            color="error"
+            onDelete={() => setErrorMessage(null)}
+            sx={{ fontWeight: 600 }}
+          />
+        </Box>
+      )}
     </div>
   );
 }

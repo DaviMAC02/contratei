@@ -149,11 +149,9 @@ export default function TeamClient({
     console.log("Change role not implemented yet", { userId, newRole });
   };
 
+  const [removeUserId, setRemoveUserId] = useState<string | null>(null);
   const handleRemove = async (userId: string) => {
-    // TODO: Implement removeUser mutation
-    if (confirm("Tem certeza que deseja remover este usuário?")) {
-      console.log("Remove user not implemented yet", { userId });
-    }
+    setRemoveUserId(userId);
   };
 
   return (
@@ -722,6 +720,33 @@ export default function TeamClient({
             </Button>
           </DialogActions>
         </form>
+      </Dialog>
+
+      {/* Remove Member Modal */}
+      <Dialog
+        open={!!removeUserId}
+        onClose={() => setRemoveUserId(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Remover membro</DialogTitle>
+        <DialogContent>
+          Tem certeza que deseja remover este usuário da organização?
+        </DialogContent>
+        <DialogActions>
+          <Button variant="text" onClick={() => setRemoveUserId(null)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => {
+              console.log("Remove user not implemented yet", { userId: removeUserId });
+              setRemoveUserId(null);
+              router.refresh();
+            }}
+          >
+            Remover
+          </Button>
+        </DialogActions>
       </Dialog>
     </div>
   );

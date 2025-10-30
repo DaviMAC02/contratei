@@ -381,9 +381,36 @@ export const contractRouter = createTRPCRouter({
         });
       }
 
+      // If nextRenewalDate not explicitly provided, recompute when endDate/periodicityDays change
+      let dataToUpdate: any = { ...updateData };
+      const endDateChanged = Object.prototype.hasOwnProperty.call(
+        updateData,
+        "endDate"
+      );
+      const periodicityChanged = Object.prototype.hasOwnProperty.call(
+        updateData,
+        "periodicityDays"
+      );
+      const nextRenewalProvided = Object.prototype.hasOwnProperty.call(
+        updateData,
+        "nextRenewalDate"
+      );
+
+      if (!nextRenewalProvided && (endDateChanged || periodicityChanged)) {
+        const effectiveEndDate = (updateData.endDate as Date | undefined) ?? existing.endDate;
+        const effectivePeriodicity =
+          (updateData.periodicityDays as number | undefined) ?? existing.periodicityDays;
+
+        if (effectiveEndDate) {
+          dataToUpdate.nextRenewalDate = effectiveEndDate;
+        } else if (effectivePeriodicity) {
+          dataToUpdate.nextRenewalDate = addDays(existing.startDate, effectivePeriodicity);
+        }
+      }
+
       const contract = await ctx.prisma.contract.update({
         where: { id },
-        data: updateData,
+        data: dataToUpdate,
       });
 
       await createAuditLog({

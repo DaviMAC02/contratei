@@ -991,29 +991,17 @@ export default function NewContractClient({
         </CardContent>
       </Card>
 
-      {/* Error Toast */}
-      <Snackbar
-        open={!!errorToast}
-        autoHideDuration={6000}
-        onClose={() => setErrorToast(null)}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setErrorToast(null)}
-          severity="error"
-          sx={{
-            width: "100%",
-            bgcolor: "#ef4444",
-            color: "white",
-            fontSize: "1rem",
-            "& .MuiAlert-icon": {
-              color: "white",
-            },
-          }}
-        >
-          {errorToast}
-        </Alert>
-      </Snackbar>
+      {/* Error Chip */}
+      {errorToast && (
+        <Box sx={{ position: "fixed", top: 16, right: 16 }}>
+          <Chip
+            label={errorToast}
+            color="error"
+            onDelete={() => setErrorToast(null)}
+            sx={{ fontWeight: 600 }}
+          />
+        </Box>
+      )}
     </Box>
   );
 }
