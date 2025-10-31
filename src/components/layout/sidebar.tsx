@@ -83,7 +83,6 @@ export function Sidebar({
   onClose,
 }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const { data: session } = useSession();
   const { t } = useTranslation();
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
@@ -96,7 +95,7 @@ export function Sidebar({
     if (isOpen && onClose) {
       onClose();
     }
-  }, [pathname]);
+  }, [pathname, isOpen, onClose]);
 
   // Clear navigating state when pathname changes
   useEffect(() => {
