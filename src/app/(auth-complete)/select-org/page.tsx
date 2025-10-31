@@ -96,9 +96,12 @@ export default function SelectOrgPage() {
       });
 
       if (response.ok) {
-        await updateSession({ selectedOrgId: orgId });
-        await new Promise(resolve => setTimeout(resolve, 100));
-        window.location.href = "/dashboard?_from_org_select=1";
+        const data = await response.json();
+        if (data.shouldUpdateSession) {
+          await updateSession({ selectedOrgId: orgId });
+        }
+        router.refresh();
+        router.push("/dashboard");
       } else {
         console.error("Failed to update org in session");
         setIsRedirecting(false);

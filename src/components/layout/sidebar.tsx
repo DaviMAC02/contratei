@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { signOutWithRevocation } from "@/lib/session-utils";
 import { useState, useEffect } from "react";
@@ -15,31 +15,19 @@ import {
   CreditCard,
   LogOut,
   Building,
-  ChevronDown,
-  Check,
-  X,
   BarChart3,
-  Loader2,
 } from "lucide-react";
 import { useTranslation } from "@/lib/use-translation";
-import { trpc } from "@/lib/trpc-client";
-import { useQueryClient } from "@tanstack/react-query";
 import { NotificationBell } from "./notification-bell";
 import {
-  Drawer,
   List,
-  ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Avatar,
-  Divider,
   Box,
   Typography,
-  IconButton,
   Button,
-  Menu,
-  MenuItem,
   CircularProgress,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
@@ -96,20 +84,12 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { data: session, update } = useSession();
+  const { data: session } = useSession();
   const { t } = useTranslation();
-  const orgsQuery = trpc.org.list.useQuery();
-  const queryClient = useQueryClient();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
 
   // Use session orgId if available, fallback to prop
   const currentOrgId = session?.selectedOrgId || propOrgId;
-
-  // Find current org data
-  const currentOrg = orgsQuery.data?.find((org) => org.id === currentOrgId);
-  const currentOrgName = currentOrg?.name || orgName;
 
   // Close sidebar on navigation for mobile
   useEffect(() => {
@@ -122,34 +102,6 @@ export function Sidebar({
   useEffect(() => {
     setNavigatingTo(null);
   }, [pathname]);
-
-  const handleOrgMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleOrgMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleOrgSwitch = async (newOrgId: string) => {
-    try {
-      const response = await fetch("/api/session/update-org", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgId: newOrgId }),
-      });
-
-      if (response.ok) {
-        await update({ selectedOrgId: newOrgId });
-        await queryClient.invalidateQueries();
-        handleOrgMenuClose();
-        await new Promise(resolve => setTimeout(resolve, 100));
-        window.location.href = "/dashboard?_from_org_select=1";
-      }
-    } catch (error) {
-      console.error("Error switching org:", error);
-    }
-  };
 
   const navigation = [
     {
@@ -183,8 +135,6 @@ export function Sidebar({
       icon: Settings,
     },
   ];
-
-  const hasMultipleOrgs = orgsQuery.data && orgsQuery.data.length > 1;
 
   return (
     <>
@@ -266,156 +216,55 @@ export function Sidebar({
         {/* Bottom Section - User & Org unified */}
         <Box className="mt-auto border-t border-gray-100">
           <Box className="p-3 bg-gradient-to-br from-gray-50 to-white">
-            {/* Org Switcher */}
+            {/* Org Display */}
             <Box className="mb-2 pb-2 border-b border-gray-200">
-              {hasMultipleOrgs ? (
-                <>
-                  <Box
-                    onClick={handleOrgMenuOpen}
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1.25,
-                      cursor: "pointer",
-                      padding: "8px 10px",
-                      borderRadius: "10px",
-                      backgroundColor: "white",
-                      border: "1px solid #e5e7eb",
-                      transition: "all 0.2s ease",
-                      "&:hover": {
-                        borderColor: "#d1d5db",
-                        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.05)",
-                      },
-                    }}
-                  >
-                    <Avatar
-                      sx={{
-                        bgcolor: "#1d2b48",
-                        width: 32,
-                        height: 32,
-                      }}
-                    >
-                      <Building className="h-3.5 w-3.5" />
-                    </Avatar>
-                    <Box className="flex-1 min-w-0">
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontSize: "0.9rem",
-                          fontWeight: 600,
-                          color: "#1f2937",
-                          lineHeight: 1.3,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {currentOrgName}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          color: "#6b7280",
-                          fontSize: "0.6875rem",
-                          lineHeight: 1.2,
-                        }}
-                      >
-                        Workspace
-                      </Typography>
-                    </Box>
-                    <ChevronDown className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                  </Box>
-                  <Menu
-                    anchorEl={anchorEl}
-                    open={Boolean(anchorEl)}
-                    onClose={handleOrgMenuClose}
-                    PaperProps={{
-                      sx: {
-                        width: 256,
-                        mt: 1,
-                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-                        borderRadius: "12px",
-                      },
-                    }}
-                  >
-                    {orgsQuery.data?.map((org) => (
-                      <MenuItem
-                        key={org.id}
-                        onClick={() => handleOrgSwitch(org.id)}
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          py: 1.5,
-                          px: 2,
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1.5,
-                          }}
-                        >
-                          <Building className="h-4 w-4" />
-                          <Typography variant="body2">{org.name}</Typography>
-                        </Box>
-                        {org.id === currentOrgId && (
-                          <Check className="h-4 w-4 text-primary" />
-                        )}
-                      </MenuItem>
-                    ))}
-                  </Menu>
-                </>
-              ) : (
-                <Box
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.25,
+                  padding: "8px 10px",
+                  borderRadius: "10px",
+                  backgroundColor: "white",
+                  border: "1px solid #e5e7eb",
+                }}
+              >
+                <Avatar
                   sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.25,
-                    padding: "8px 10px",
-                    borderRadius: "10px",
-                    backgroundColor: "white",
-                    border: "1px solid #e5e7eb",
+                    bgcolor: "#1d2b48",
+                    width: 32,
+                    height: 32,
                   }}
                 >
-                  <Avatar
+                  <Building className="h-3.5 w-3.5" />
+                </Avatar>
+                <Box className="flex-1 min-w-0">
+                  <Typography
+                    variant="body2"
                     sx={{
-                      bgcolor: "#1d2b48",
-                      width: 32,
-                      height: 32,
+                      fontWeight: 600,
+                      color: "#111827",
+                      fontSize: "0.8125rem",
+                      lineHeight: 1.3,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
                     }}
                   >
-                    <Building className="h-3.5 w-3.5" />
-                  </Avatar>
-                  <Box className="flex-1 min-w-0">
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 600,
-                        color: "#111827",
-                        fontSize: "0.8125rem",
-                        lineHeight: 1.3,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {currentOrgName}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: "#6b7280",
-                        fontSize: "0.6875rem",
-                        lineHeight: 1.2,
-                      }}
-                    >
-                      Workspace
-                    </Typography>
-                  </Box>
+                    {orgName}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "#6b7280",
+                      fontSize: "0.6875rem",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    Workspace
+                  </Typography>
                 </Box>
-              )}
+              </Box>
             </Box>
 
             {/* User section */}

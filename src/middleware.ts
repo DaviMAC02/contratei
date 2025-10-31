@@ -67,15 +67,9 @@ const middleware = auth(async (req) => {
 
   if (hasSession && isProtected) {
     const orgId = req.auth?.selectedOrgId;
-    const skipCheck = req.nextUrl.searchParams.get("_from_org_select") === "1";
 
-    if (!orgId && !skipCheck) {
+    if (!orgId) {
       return NextResponse.redirect(new URL("/select-org", req.url));
-    }
-
-    if (skipCheck && !orgId) {
-      const url = new URL(req.nextUrl.pathname, req.url);
-      return NextResponse.redirect(url);
     }
   }
 

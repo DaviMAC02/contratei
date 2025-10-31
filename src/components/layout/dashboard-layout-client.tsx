@@ -49,7 +49,9 @@ export default function DashboardLayoutClient({
             >
               <Menu className="h-6 w-6" />
             </IconButton>
-            <span className="ml-4 font-semibold text-lg truncate">{orgName}</span>
+            <span className="ml-4 font-semibold text-lg truncate">
+              {orgName}
+            </span>
           </Box>
           <NotificationBell />
         </div>

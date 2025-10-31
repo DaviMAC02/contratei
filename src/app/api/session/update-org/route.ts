@@ -85,7 +85,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, orgId });
+    return NextResponse.json({ 
+      success: true, 
+      orgId,
+      shouldUpdateSession: true
+    });
   } catch (error) {
     console.error("Error updating org in session:", error);
     return NextResponse.json(
