@@ -14,25 +14,13 @@ export const PLAN_FEATURES = {
     automaticAdjustments: false,
     fileUpload: false,
   },
-  STARTER: {
-    automaticAlerts: true,
-    automaticRenewal: true,
-    automaticAdjustments: false,
-    fileUpload: true,
-  },
-  GROWTH: {
-    automaticAlerts: true,
-    automaticRenewal: true,
-    automaticAdjustments: true,
-    fileUpload: true,
-  },
   PRO: {
     automaticAlerts: true,
     automaticRenewal: true,
     automaticAdjustments: true,
     fileUpload: true,
   },
-  STUDIO: {
+  ENTERPRISE: {
     automaticAlerts: true,
     automaticRenewal: true,
     automaticAdjustments: true,
@@ -56,54 +44,14 @@ export const PLANS = {
       USD: { monthly: null, yearly: null },
     },
   },
-  STARTER: {
-    name: "Starter",
-    maxContracts: 25,
-    maxUsers: 3,
-    features: PLAN_FEATURES.STARTER,
-    price: {
-      BRL: { monthly: 4900, yearly: 49000 }, // R$ 49/mês ou R$ 490/ano (10 meses)
-      USD: { monthly: 1200, yearly: 12000 }, // $12/mês ou $120/ano (10 meses)
-    },
-    stripePriceId: {
-      BRL: {
-        monthly: process.env.STRIPE_STARTER_MONTHLY_BRL_PRICE_ID,
-        yearly: process.env.STRIPE_STARTER_YEARLY_BRL_PRICE_ID,
-      },
-      USD: {
-        monthly: process.env.STRIPE_STARTER_MONTHLY_USD_PRICE_ID,
-        yearly: process.env.STRIPE_STARTER_YEARLY_USD_PRICE_ID,
-      },
-    },
-  },
-  GROWTH: {
-    name: "Growth",
-    maxContracts: 100,
-    maxUsers: 10,
-    features: PLAN_FEATURES.GROWTH,
-    price: {
-      BRL: { monthly: 14900, yearly: 149000 }, // R$ 149/mês ou R$ 1.490/ano (10 meses)
-      USD: { monthly: 3500, yearly: 35000 }, // $35/mês ou $350/ano (10 meses)
-    },
-    stripePriceId: {
-      BRL: {
-        monthly: process.env.STRIPE_GROWTH_MONTHLY_BRL_PRICE_ID,
-        yearly: process.env.STRIPE_GROWTH_YEARLY_BRL_PRICE_ID,
-      },
-      USD: {
-        monthly: process.env.STRIPE_GROWTH_MONTHLY_USD_PRICE_ID,
-        yearly: process.env.STRIPE_GROWTH_YEARLY_USD_PRICE_ID,
-      },
-    },
-  },
   PRO: {
     name: "Pro",
-    maxContracts: 300,
-    maxUsers: 20,
+    maxContracts: 100,
+    maxUsers: 10,
     features: PLAN_FEATURES.PRO,
     price: {
-      BRL: { monthly: 34900, yearly: 349000 }, // R$ 349/mês ou R$ 3.490/ano (10 meses)
-      USD: { monthly: 8500, yearly: 85000 }, // $85/mês ou $850/ano (10 meses)
+      BRL: { monthly: 9900, yearly: 99000 }, // R$ 99/mês ou R$ 990/ano (10 meses)
+      USD: { monthly: 2500, yearly: 25000 }, // $25/mês ou $250/ano (10 meses)
     },
     stripePriceId: {
       BRL: {
@@ -116,23 +64,23 @@ export const PLANS = {
       },
     },
   },
-  STUDIO: {
-    name: "Studio",
+  ENTERPRISE: {
+    name: "Enterprise",
     maxContracts: 999999, // Virtually unlimited
     maxUsers: 999999, // Virtually unlimited
-    features: PLAN_FEATURES.STUDIO,
+    features: PLAN_FEATURES.ENTERPRISE,
     price: {
-      BRL: { monthly: 74900, yearly: 749000 }, // R$ 749/mês ou R$ 7.490/ano (10 meses)
-      USD: { monthly: 18000, yearly: 180000 }, // $180/mês ou $1.800/ano (10 meses)
+      BRL: { monthly: 49900, yearly: 499000 }, // R$ 499/mês ou R$ 4.990/ano (10 meses)
+      USD: { monthly: 12000, yearly: 120000 }, // $120/mês ou $1.200/ano (10 meses)
     },
     stripePriceId: {
       BRL: {
-        monthly: process.env.STRIPE_STUDIO_MONTHLY_BRL_PRICE_ID,
-        yearly: process.env.STRIPE_STUDIO_YEARLY_BRL_PRICE_ID,
+        monthly: process.env.STRIPE_ENTERPRISE_MONTHLY_BRL_PRICE_ID,
+        yearly: process.env.STRIPE_ENTERPRISE_YEARLY_BRL_PRICE_ID,
       },
       USD: {
-        monthly: process.env.STRIPE_STUDIO_MONTHLY_USD_PRICE_ID,
-        yearly: process.env.STRIPE_STUDIO_YEARLY_USD_PRICE_ID,
+        monthly: process.env.STRIPE_ENTERPRISE_MONTHLY_USD_PRICE_ID,
+        yearly: process.env.STRIPE_ENTERPRISE_YEARLY_USD_PRICE_ID,
       },
     },
   },

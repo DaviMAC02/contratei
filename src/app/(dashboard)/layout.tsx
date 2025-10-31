@@ -19,7 +19,6 @@ export default async function DashboardLayout({
     redirect("/auth/signin");
   }
 
-  // Check if user has any organization
   const hasOrg = await prisma.orgMember.findFirst({
     where: { userId: session.user.id },
     select: { orgId: true },
@@ -29,12 +28,10 @@ export default async function DashboardLayout({
     redirect("/onboarding");
   }
 
-  // If user hasn't selected an org, redirect to select-org
   if (!session.selectedOrgId) {
     redirect("/select-org");
   }
 
-  // Get selected org for locale
   const org = await prisma.org.findUnique({
     where: { id: session.selectedOrgId },
     select: { id: true, name: true, locale: true },

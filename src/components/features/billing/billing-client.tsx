@@ -446,7 +446,7 @@ export default function BillingClient({
       >
         {plans?.map((plan: any) => {
           const isCurrent = org?.plan === plan.id;
-          const isFeatured = plan.name.toLowerCase().includes("pro");
+          const isFeatured = plan.id === "PRO";
 
           return (
             <PlanCard key={plan.id} featured={isFeatured} current={isCurrent}>

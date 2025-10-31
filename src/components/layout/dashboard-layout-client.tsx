@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
-import { IconButton } from "@mui/material";
+import { IconButton, Box } from "@mui/material";
 import { Sidebar } from "@/components/layout/sidebar";
+import { NotificationBell } from "@/components/layout/notification-bell";
 
 interface DashboardLayoutClientProps {
   orgId: string;
@@ -40,14 +41,17 @@ export default function DashboardLayoutClient({
       />
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile Header with Hamburger */}
-        <div className="lg:hidden flex items-center h-16 border-b px-4 bg-card">
-          <IconButton
-            onClick={() => setSidebarOpen(true)}
-            sx={{ color: "#1d2b48" }}
-          >
-            <Menu className="h-6 w-6" />
-          </IconButton>
-          <span className="ml-4 font-semibold text-lg truncate">{orgName}</span>
+        <div className="lg:hidden flex items-center justify-between h-16 border-b px-4 bg-card">
+          <Box sx={{ display: "flex", alignItems: "center", flex: 1 }}>
+            <IconButton
+              onClick={() => setSidebarOpen(true)}
+              sx={{ color: "#1d2b48" }}
+            >
+              <Menu className="h-6 w-6" />
+            </IconButton>
+            <span className="ml-4 font-semibold text-lg truncate">{orgName}</span>
+          </Box>
+          <NotificationBell />
         </div>
         <main
           className={`flex-1 overflow-y-auto bg-background transition-opacity duration-150 ${

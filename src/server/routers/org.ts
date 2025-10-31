@@ -383,9 +383,15 @@ export const orgRouter = createTRPCRouter({
       });
 
       if (memberCount >= org.maxUsers) {
+        const exceedingCount = memberCount - org.maxUsers;
+        const message =
+          exceedingCount > 0
+            ? `Você tem ${memberCount} usuários, mas seu plano permite apenas ${org.maxUsers}. ` +
+              `Você precisa fazer upgrade ou remover ${exceedingCount + 1} usuário(s) para adicionar novos.`
+            : `Você atingiu o limite de ${org.maxUsers} usuários do seu plano. Faça upgrade para adicionar mais usuários.`;
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: `You have reached the maximum number of users (${org.maxUsers}) for your plan.`,
+          message,
         });
       }
 

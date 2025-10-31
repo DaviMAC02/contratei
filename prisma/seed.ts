@@ -71,7 +71,7 @@ async function main() {
       currency: "BRL",
       plan: "PRO",
       maxContracts: 100,
-      maxUsers: 20,
+      maxUsers: 10,
       stripeCustomerId: `cus_test_${nanoid()}`,
       // PJ organization with address
       orgType: "PJ",
@@ -118,8 +118,8 @@ async function main() {
       timezone: "America/Sao_Paulo",
       locale: "pt-BR",
       currency: "BRL",
-      plan: "GROWTH",
-      maxContracts: 50,
+      plan: "PRO",
+      maxContracts: 100,
       maxUsers: 10,
       stripeCustomerId: `cus_test_2_${nanoid()}`,
       // PF organization (individual contractor/freelancer)
@@ -160,7 +160,7 @@ async function main() {
     data: {
       orgId: orgBR2.id,
       stripeSubscriptionId: `sub_test_2_${nanoid()}`,
-      stripePriceId: "price_growth_monthly_brl",
+      stripePriceId: "price_pro_monthly_brl",
       stripeCustomerId: orgBR2.stripeCustomerId!,
       status: "ACTIVE",
       stripeCurrentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // +30 days
@@ -500,9 +500,9 @@ async function main() {
       timezone: "America/New_York",
       locale: "en-US",
       currency: "USD",
-      plan: "STARTER",
-      maxContracts: 10,
-      maxUsers: 5,
+      plan: "PRO",
+      maxContracts: 100,
+      maxUsers: 10,
       stripeCustomerId: `cus_test_us_${nanoid()}`,
       members: {
         create: [
@@ -519,7 +519,7 @@ async function main() {
     data: {
       orgId: orgUS.id,
       stripeSubscriptionId: `sub_test_us_${nanoid()}`,
-      stripePriceId: "price_starter_monthly_usd",
+      stripePriceId: "price_pro_monthly_usd",
       stripeCustomerId: orgUS.stripeCustomerId!,
       status: "ACTIVE",
       stripeCurrentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),

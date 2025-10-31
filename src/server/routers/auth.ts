@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure } from "../trpc";
+import { createTRPCRouter, publicProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { Prisma } from "@prisma/client";
 
 export const authRouter = createTRPCRouter({
   signupWithOrg: publicProcedure
@@ -204,6 +205,186 @@ export const authRouter = createTRPCRouter({
       return {
         exists: !!user,
         ownsOrg: user ? user.memberships.length > 0 : false,
+      };
+    }),
+
+  createSession: protectedProcedure
+    .input(
+      z
+        .object({
+          ip: z.string().optional(),
+          userAgent: z.string().optional(),
+          location: z
+            .object({
+              city: z.string().optional(),
+              region: z.string().optional(),
+              country: z.string().optional(),
+              countryCode: z.string().optional(),
+              latitude: z.number().optional(),
+              longitude: z.number().optional(),
+              source: z.string().optional(),
+            })
+            .optional(),
+        })
+        .optional()
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const { cookies } = await import("next/headers");
+      const cookieStore = await cookies();
+      const sessionToken = cookieStore.get("authjs.session-token")?.value;
+
+      if (!sessionToken) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No session token found",
+        });
+      }
+
+      const sessionExpiry = new Date();
+      sessionExpiry.setDate(sessionExpiry.getDate() + 30);
+
+      const revokedCount = await ctx.prisma.session.updateMany({
+        where: {
+          userId,
+          sessionToken: {
+            not: sessionToken,
+          },
+          revoked: false,
+          expires: {
+            gt: new Date(),
+          },
+        },
+        data: {
+          revoked: true,
+          revokeReason: "NEW_LOGIN",
+          revokedAt: new Date(),
+        },
+      });
+
+      if (revokedCount.count > 0) {
+        console.log(
+          `✅ Revoked ${revokedCount.count} other active session(s) for user ${userId} due to new login`
+        );
+      }
+
+      const existingSession = await ctx.prisma.session.findUnique({
+        where: {
+          sessionToken,
+        },
+      });
+
+      if (
+        existingSession &&
+        !existingSession.revoked &&
+        existingSession.expires > new Date() &&
+        existingSession.userId === userId
+      ) {
+        await ctx.prisma.session.update({
+          where: { id: existingSession.id },
+          data: {
+            expires: sessionExpiry,
+          },
+        });
+
+        return {
+          success: true,
+          sessionId: existingSession.id,
+          message: "Session already exists and is valid",
+          revokedOtherSessions: revokedCount.count,
+        };
+      }
+
+      const sessionData: {
+        sessionToken: string;
+        userId: string;
+        expires: Date;
+        revoked: boolean;
+        ip?: string;
+        userAgent?: string;
+        location?: string;
+        locationCity?: string;
+        locationRegion?: string;
+        locationCountry?: string;
+        locationCountryCode?: string;
+        latitude?: number;
+        longitude?: number;
+        locationSource?: string;
+      } = {
+        sessionToken,
+        userId,
+        expires: sessionExpiry,
+        revoked: false,
+      };
+
+      if (input?.ip && input.ip !== "unknown") {
+        sessionData.ip = input.ip;
+      }
+      if (input?.userAgent) {
+        sessionData.userAgent = input.userAgent;
+      }
+
+      if (input?.location) {
+        const loc = input.location;
+        if (loc.city) {
+          sessionData.locationCity = loc.city;
+          sessionData.location = `${loc.city}${loc.region ? `, ${loc.region}` : ""}${loc.country ? `, ${loc.country}` : ""}`.trim();
+        }
+        if (loc.region) {
+          sessionData.locationRegion = loc.region;
+        }
+        if (loc.country) {
+          sessionData.locationCountry = loc.country;
+        }
+        if (loc.countryCode) {
+          sessionData.locationCountryCode = loc.countryCode;
+        }
+        if (loc.latitude !== undefined) {
+          sessionData.latitude = loc.latitude;
+        }
+        if (loc.longitude !== undefined) {
+          sessionData.longitude = loc.longitude;
+        }
+        if (loc.source) {
+          sessionData.locationSource = loc.source;
+        }
+      }
+
+      const session = await ctx.prisma.session.upsert({
+        where: {
+          sessionToken,
+        },
+        update: {
+          userId,
+          expires: sessionExpiry,
+          revoked: false,
+          revokeReason: null,
+          revokedAt: null,
+          ...(input?.ip && input.ip !== "unknown" ? { ip: input.ip } : {}),
+          ...(input?.userAgent ? { userAgent: input.userAgent } : {}),
+          ...(input?.location ? {
+            location: sessionData.location || null,
+            locationCity: sessionData.locationCity || null,
+            locationRegion: sessionData.locationRegion || null,
+            locationCountry: sessionData.locationCountry || null,
+            locationCountryCode: sessionData.locationCountryCode || null,
+            latitude: sessionData.latitude || null,
+            longitude: sessionData.longitude || null,
+            locationSource: sessionData.locationSource || null,
+          } : {}),
+        },
+        create: sessionData,
+      });
+
+      console.log(
+        `✅ Created/updated session ${session.id} for user ${userId} after org selection (revoked ${revokedCount.count} other sessions)`
+      );
+
+      return {
+        success: true,
+        sessionId: session.id,
+        message: "Session created/updated successfully",
+        revokedOtherSessions: revokedCount.count,
       };
     }),
 });

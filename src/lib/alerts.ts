@@ -12,13 +12,9 @@ interface CreateAlertParams {
   metadata?: any;
 }
 
-/**
- * Creates and sends alerts based on org's alert settings
- */
 export async function createAlert(params: CreateAlertParams) {
   const { orgId, userId, eventType, title, message, metadata } = params;
 
-  // Check if org has automatic alerts enabled for their plan
   const org = await prisma.org.findUnique({
     where: { id: orgId },
     select: { plan: true },
@@ -28,7 +24,6 @@ export async function createAlert(params: CreateAlertParams) {
     throw new Error("Organization not found");
   }
 
-  // Check if plan supports automatic alerts
   if (!hasPlanFeature(org.plan as PlanName, "automaticAlerts")) {
     console.log(
       `Skipping alert for org ${orgId} - plan ${org.plan} doesn't support automatic alerts`
@@ -36,7 +31,6 @@ export async function createAlert(params: CreateAlertParams) {
     return null;
   }
 
-  // Get alert settings for this event type
   const alertSetting = await prisma.alertSetting.findUnique({
     where: {
       orgId_eventType: {
@@ -46,7 +40,6 @@ export async function createAlert(params: CreateAlertParams) {
     },
   });
 
-  // If alerts are disabled for this event type, skip
   if (alertSetting && !alertSetting.enabled) {
     console.log(`Alerts disabled for ${eventType} in org ${orgId}`);
     return null;
@@ -55,7 +48,6 @@ export async function createAlert(params: CreateAlertParams) {
   const channels = alertSetting?.channels || ["EMAIL", "IN_APP"];
   const notifications = [];
 
-  // Create notification for each channel
   for (const channel of channels) {
     const notification = await prisma.notification.create({
       data: {
@@ -72,7 +64,6 @@ export async function createAlert(params: CreateAlertParams) {
 
     notifications.push(notification);
 
-    // Send email if channel is EMAIL
     if (channel === "EMAIL") {
       try {
         const user = await prisma.user.findUnique({
@@ -81,7 +72,6 @@ export async function createAlert(params: CreateAlertParams) {
         });
 
         if (user?.email) {
-          // Use styled templates per event type
           if (eventType === "RENEWAL_REMINDER") {
             const contractUrl = `${process.env.NEXT_PUBLIC_APP_URL}/contracts/${
               metadata?.contractId || ""
@@ -140,7 +130,6 @@ export async function createAlert(params: CreateAlertParams) {
 
             await sendEmail({ to: user.email, subject, html });
           } else {
-            // Generic fallback email
             await sendEmail({
               to: user.email,
               subject: title,
@@ -188,9 +177,6 @@ export async function createAlert(params: CreateAlertParams) {
   return notifications;
 }
 
-/**
- * Collect recipients: contract owner + org OWNERS and ADMINS (unique)
- */
 async function getAlertRecipients(orgId: string, defaultUserId: string) {
   const members = await prisma.orgMember.findMany({
     where: { orgId, role: { in: ["OWNER", "ADMIN"] } },
@@ -201,14 +187,11 @@ async function getAlertRecipients(orgId: string, defaultUserId: string) {
   return Array.from(ids);
 }
 
-/**
- * Check contracts that are due soon and send alerts
- */
 export async function checkExpiringContracts() {
   const orgs = await prisma.org.findMany({
     where: {
       plan: {
-        not: "FREE", // Only paid plans get automatic alerts
+        not: "FREE",
       },
     },
     select: {
@@ -223,12 +206,10 @@ export async function checkExpiringContracts() {
 
   for (const org of orgs) {
     try {
-      // Check if org has automatic alerts enabled
       if (!hasPlanFeature(org.plan as PlanName, "automaticAlerts")) {
         continue;
       }
 
-      // Get alert settings for CONTRACT_DUE_SOON
       const alertSetting = org.alertSettings.find(
         (s) => s.eventType === "CONTRACT_DUE_SOON"
       );
@@ -239,7 +220,6 @@ export async function checkExpiringContracts() {
 
       const daysBeforeArray = alertSetting.daysBeforeArray;
 
-      // Check contracts that are due in any of the configured days
       for (const daysBefore of daysBeforeArray) {
         const targetDate = new Date();
         targetDate.setDate(targetDate.getDate() + daysBefore);
@@ -248,7 +228,6 @@ export async function checkExpiringContracts() {
         const nextDay = new Date(targetDate);
         nextDay.setDate(nextDay.getDate() + 1);
 
-        // Find contracts expiring on target date
         const contracts = await prisma.contract.findMany({
           where: {
             orgId: org.id,
@@ -288,7 +267,6 @@ export async function checkExpiringContracts() {
             });
           }
 
-          // Update lastAlertSentAt
           await prisma.contract.update({
             where: { id: contract.id },
             data: { lastAlertSentAt: new Date() },
@@ -306,14 +284,11 @@ export async function checkExpiringContracts() {
   return { processedCount, errors };
 }
 
-/**
- * Check contracts that need automatic adjustment
- */
 export async function checkContractsForAdjustment() {
   const orgs = await prisma.org.findMany({
     where: {
       plan: {
-        in: ["GROWTH", "PRO", "STUDIO"],
+        in: ["PRO", "ENTERPRISE"],
       },
     },
     select: { id: true, plan: true },
@@ -324,12 +299,10 @@ export async function checkContractsForAdjustment() {
 
   for (const org of orgs) {
     try {
-      // Check if org has automatic adjustments enabled
       if (!hasPlanFeature(org.plan as PlanName, "automaticAdjustments")) {
         continue;
       }
 
-      // Find contracts that need adjustment (1 year since start or last adjustment)
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
@@ -353,13 +326,11 @@ export async function checkContractsForAdjustment() {
       });
 
       for (const contract of contracts) {
-        // Check if already adjusted recently
         const lastAdjustment = contract.adjustments[0];
         if (lastAdjustment && lastAdjustment.adjustmentDate > oneYearAgo) {
           continue;
         }
 
-        // Calculate new value based on manual adjustment percentage
         if (!contract.adjustmentValue) {
           console.log(
             `Contract ${contract.id} has adjustment enabled but no percentage set`
@@ -372,7 +343,6 @@ export async function checkContractsForAdjustment() {
           1 + adjustmentPercentage / 100
         );
 
-        // Create adjustment record
         await prisma.contractAdjustment.create({
           data: {
             contractId: contract.id,
@@ -386,7 +356,6 @@ export async function checkContractsForAdjustment() {
           },
         });
 
-        // Update contract value
         await prisma.contract.update({
           where: { id: contract.id },
           data: {
@@ -394,7 +363,6 @@ export async function checkContractsForAdjustment() {
           },
         });
 
-        // Send alerts (reajuste aplicado) to owner + org owners/admins
         const recipients = await getAlertRecipients(
           org.id,
           contract.ownerUserId
@@ -431,9 +399,6 @@ export async function checkContractsForAdjustment() {
   return { processedCount, errors };
 }
 
-/**
- * Process automatic contract renewals
- */
 export async function processAutomaticRenewals() {
   const orgs = await prisma.org.findMany({
     where: {
@@ -449,12 +414,10 @@ export async function processAutomaticRenewals() {
 
   for (const org of orgs) {
     try {
-      // Check if org has automatic renewal enabled
       if (!hasPlanFeature(org.plan as PlanName, "automaticRenewal")) {
         continue;
       }
 
-      // Find contracts that expired today and have autoRenew enabled
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
@@ -475,7 +438,6 @@ export async function processAutomaticRenewals() {
       });
 
       for (const contract of contracts) {
-        // Calculate new end date based on original contract duration (no periodicity)
         const prevEnd = new Date(contract.nextRenewalDate!);
         const durationDays = contract.periodicityDays
           ? Number(contract.periodicityDays)
@@ -490,7 +452,6 @@ export async function processAutomaticRenewals() {
         const newEndDate = new Date(prevEnd);
         newEndDate.setDate(newEndDate.getDate() + durationDays);
 
-        // Create renewal history record
         await prisma.renewalHistory.create({
           data: {
             contractId: contract.id,
@@ -502,7 +463,6 @@ export async function processAutomaticRenewals() {
           },
         });
 
-        // Update contract
         await prisma.contract.update({
           where: { id: contract.id },
           data: {
@@ -512,7 +472,6 @@ export async function processAutomaticRenewals() {
           },
         });
 
-        // Send alerts to owner + org owners/admins
         const recipients = await getAlertRecipients(
           org.id,
           contract.ownerUserId

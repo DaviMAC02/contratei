@@ -80,7 +80,7 @@ export const billingRouter = createTRPCRouter({
     .input(
       z.object({
         orgId: z.string(),
-        plan: z.enum(["STARTER", "GROWTH", "PRO", "STUDIO"]),
+        plan: z.enum(["PRO", "ENTERPRISE"]),
         interval: z.enum(["monthly", "yearly"]),
       })
     )

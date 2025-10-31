@@ -4,8 +4,6 @@ import Resend from "next-auth/providers/resend";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "./prisma";
 
-// Explicit cookie configuration for NextAuth
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers: [
@@ -151,40 +149,101 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async signIn({ user, account, profile, email, credentials }) {
+      if (account?.provider === "google" && user.email) {
+        const existingUser = await prisma.user.findUnique({
+          where: { email: user.email },
+          include: {
+            accounts: {
+              where: { provider: "google" },
+            },
+          },
+        });
+
+        if (existingUser) {
+          const hasGoogleAccount = existingUser.accounts.some(
+            (acc) => acc.provider === "google"
+          );
+
+          if (!hasGoogleAccount) {
+            await prisma.account.create({
+              data: {
+                userId: existingUser.id,
+                type: account.type,
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+                refresh_token: account.refresh_token,
+                access_token: account.access_token,
+                expires_at: account.expires_at,
+                token_type: account.token_type,
+                scope: account.scope,
+                id_token: account.id_token,
+                session_state:
+                  typeof account.session_state === "string"
+                    ? account.session_state
+                    : null,
+              },
+            });
+
+            if (!existingUser.image && user.image) {
+              await prisma.user.update({
+                where: { id: existingUser.id },
+                data: { image: user.image },
+              });
+            }
+          }
+
+          return true;
+        }
+
+        return false;
+      }
+
       return true;
     },
     async redirect({ url, baseUrl }) {
-      // If the url is already an absolute URL, check if it's from our domain
       if (url.startsWith("/")) {
         return `${baseUrl}${url}`;
       } else if (new URL(url).origin === baseUrl) {
         return url;
       }
 
-      // For sign-in redirects, check user's organizations
       if (
         url === baseUrl ||
         url === `${baseUrl}/` ||
         url === `${baseUrl}/select-org`
       ) {
         try {
-          // Get the session to find the user
           const session = await auth();
           if (session?.user?.id) {
-            // Get user's organizations
-            const orgs = await prisma.orgMember.findMany({
-              where: { userId: session.user.id },
-              include: { org: true },
+            const user = await prisma.user.findUnique({
+              where: { id: session.user.id },
+              include: {
+                accounts: true,
+                memberships: true,
+              },
             });
 
-            // If user has exactly one org, redirect directly to dashboard
-            // The orgId will be set in the session by the dashboard page
-            if (orgs.length === 1) {
-              return `${baseUrl}/dashboard`;
-            }
+            if (user) {
+              const hasGoogleAccount = user.accounts.some(
+                (acc) => acc.provider === "google"
+              );
+              const hasOtherAccount = user.accounts.some(
+                (acc) => acc.provider !== "google"
+              );
+              const hasOrg = user.memberships.length > 0;
 
-            // If user has multiple orgs or no orgs, go to select-org
-            return `${baseUrl}/select-org`;
+              if (hasGoogleAccount && !hasOtherAccount && !hasOrg) {
+                return `${baseUrl}/auth/error?error=OAuthAccountNotLinked`;
+              }
+
+              const orgCount = user.memberships.length;
+
+              if (orgCount === 1) {
+                return `${baseUrl}/dashboard`;
+              }
+
+              return `${baseUrl}/select-org`;
+            }
           }
         } catch (error) {
           console.error("Error checking user orgs in redirect:", error);
@@ -211,28 +270,48 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.picture = user.image;
       }
 
-      // Handle session update trigger (when user changes org)
       if (trigger === "update" && session?.selectedOrgId) {
         token.selectedOrgId = session.selectedOrgId;
       }
 
-      // Add issued at time for tracking token age
       if (!token.iat) {
         token.iat = Math.floor(Date.now() / 1000);
       }
 
-      // Update last activity timestamp on every request
       token.lastActivity = Math.floor(Date.now() / 1000);
 
       return token;
     },
   },
   events: {
-    async signIn({ user, account, isNewUser }) {
-      // Custom sign in event logic can go here
-    },
     async createUser({ user }) {
-      // Custom create user event logic can go here
+      if (user.email) {
+        const hasOrg = await prisma.orgMember.findFirst({
+          where: { userId: user.id },
+        });
+
+        if (!hasOrg) {
+          const accounts = await prisma.account.findMany({
+            where: { userId: user.id },
+          });
+
+          const hasGoogleAccount = accounts.some(
+            (acc) => acc.provider === "google"
+          );
+          const hasOtherAccount = accounts.some(
+            (acc) => acc.provider !== "google"
+          );
+
+          if (hasGoogleAccount && !hasOtherAccount) {
+            await prisma.account.deleteMany({
+              where: { userId: user.id },
+            });
+            await prisma.user.delete({
+              where: { id: user.id },
+            });
+          }
+        }
+      }
     },
   },
   trustHost: true,

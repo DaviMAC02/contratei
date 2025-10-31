@@ -26,6 +26,7 @@ model User {
 
   accounts      Account[]
   sessions      Session[]
+  devices       Device[]
   memberships   OrgMember[]
   contracts     Contract[] // Contracts owned by this user
   auditLogs     AuditLog[]
@@ -55,14 +56,64 @@ model Account {
   @@index([userId])
 }
 
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Device {
+  id                    String    @id @default(uuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId              String    @unique // FingerprintJS visitorId
+  deviceFingerprintHash String // Also stores FingerprintJS visitorId (kept for compatibility)
+  appVersion            String?
+  os                    String?
+  platform              String?
+  deviceModel           String?
+  userAgent             String?
+  language              String?
+  screenResolution      String?
+  timezone              String?
+  enrollmentMethod      String    @default("OAUTH")
+  firstSeen             DateTime  @default(now())
+  lastSeen              DateTime  @default(now())
+  lastSeenIp            String?
+  ipHistory             Json?
+  lastSeenLocation      Json?
+  activated             Boolean   @default(false)
+  revoked               Boolean   @default(false)
+  revokeReason          String?
+  revokedAt             DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  sessions              Session[]
 
   @@index([userId])
+  @@index([deviceId])
+  @@index([userId, activated])
+  @@index([userId, revoked])
+}
+
+model Session {
+  id                  String    @id @default(cuid())
+  sessionToken        String    @unique
+  userId              String
+  deviceId            String? // Device.id (UUID), nullable because session may be created before device tracking
+  device              Device?   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  ip                  String? // Nullable because session may be created before IP is known
+  location            String?
+  locationCity        String?
+  locationRegion      String?
+  locationCountry     String?
+  locationCountryCode String?
+  latitude            Float?
+  longitude           Float?
+  locationSource      String?
+  userAgent           String?
+  revoked             Boolean   @default(false)
+  revokeReason        String?
+  revokedAt           DateTime?
+  expires             DateTime
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([deviceId])
 }
 
 model VerificationToken {
@@ -87,10 +138,8 @@ enum OrgRole {
 
 enum OrgPlan {
   FREE
-  STARTER
-  GROWTH
   PRO
-  STUDIO
+  ENTERPRISE
 }
 
 model Org {
@@ -243,7 +292,6 @@ enum ContractStatus {
   CANCELED
 }
 
-
 enum AdjustmentType {
   NONE
   FIXED_PERCENT
@@ -275,7 +323,7 @@ model Contract {
   nextRenewalDate DateTime?
   // New: controls autorenewal interval in days (mandatory)
   periodicityDays Int
-  autoRenew       Boolean     @default(true)
+  autoRenew       Boolean   @default(true)
 
   // Alerts & Notifications
   alertsEnabled   Boolean   @default(true)

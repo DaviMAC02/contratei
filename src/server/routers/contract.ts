@@ -246,9 +246,15 @@ export const contractRouter = createTRPCRouter({
       });
 
       if (contractCount >= org.maxContracts) {
+        const exceedingCount = contractCount - org.maxContracts;
+        const message =
+          exceedingCount > 0
+            ? `Você tem ${contractCount} contratos, mas seu plano permite apenas ${org.maxContracts}. ` +
+              `Você precisa fazer upgrade ou arquivar/excluir ${exceedingCount + 1} contrato(s) para criar novos.`
+            : `Você atingiu o limite de ${org.maxContracts} contratos do seu plano. Faça upgrade para criar mais contratos.`;
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: `Você atingiu o limite de ${org.maxContracts} contratos do seu plano. Faça upgrade para criar mais contratos.`,
+          message,
         });
       }
 

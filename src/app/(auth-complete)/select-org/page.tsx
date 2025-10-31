@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import { signOutWithRevocation } from "@/lib/session-utils";
 import { trpc } from "@/lib/trpc-client";
 import { ArrowLeft, FileText, Bell, TrendingUp } from "lucide-react";
 import Image from "next/image";
@@ -52,65 +53,52 @@ export default function SelectOrgPage() {
     setMounted(true);
   }, []);
 
-  // Auto-rotate carousel
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentBenefitIndex((prev) => (prev + 1) % benefits.length);
-    }, 5000); // Change every 5 seconds
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    // If user has only one org, redirect to dashboard with that org immediately
-    if (orgsQuery.data && orgsQuery.data.length === 1) {
-      setIsRedirecting(true);
-      const orgId = orgsQuery.data[0].id;
-
-      // Update session with selected org
-      fetch("/api/session/update-org", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgId }),
-      })
-        .then((res) => res.json())
-        .then(async () => {
-          await updateSession({ selectedOrgId: orgId });
-          // Force a small delay to ensure session is updated
-          setTimeout(() => {
-            router.push(`/dashboard`);
-          }, 300);
-        })
-        .catch((error) => {
-          console.error("Error updating session:", error);
-          router.push(`/dashboard`);
-        });
-    }
-  }, [orgsQuery.data, router, updateSession]);
-
-  const handleSelectOrg = async (orgId: string) => {
+  const handleSelectOrg = useCallback(async (orgId: string) => {
     try {
       setSelectedOrgId(orgId);
       setIsRedirecting(true);
 
-      console.log("Updating session with orgId:", orgId);
+      let gpsCoordinates = null;
+      if (typeof window !== "undefined" && "geolocation" in navigator) {
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 5000,
+              maximumAge: 0,
+            });
+          });
+          
+          gpsCoordinates = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+        } catch (error) {
+          console.log("GPS unavailable:", error);
+        }
+      }
 
-      // Update session with selected org
       const response = await fetch("/api/session/update-org", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgId }),
+        body: JSON.stringify({ 
+          orgId,
+          gpsCoordinates: gpsCoordinates || undefined,
+        }),
       });
 
       if (response.ok) {
-        console.log("Session API call successful");
         await updateSession({ selectedOrgId: orgId });
-        console.log("Session updated, redirecting to dashboard");
-
-        // Direct redirect - only if mounted
-        if (mounted && typeof window !== "undefined") {
-          window.location.href = "/dashboard";
-        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+        window.location.href = "/dashboard?_from_org_select=1";
       } else {
         console.error("Failed to update org in session");
         setIsRedirecting(false);
@@ -121,7 +109,21 @@ export default function SelectOrgPage() {
       setIsRedirecting(false);
       setSelectedOrgId("");
     }
-  };
+  }, [updateSession]);
+
+  useEffect(() => {
+    if (orgsQuery.data && orgsQuery.data.length === 0) {
+      setIsRedirecting(true);
+      signOutWithRevocation({ callbackUrl: "/auth/signin", reason: "NO_ORGS" });
+      return;
+    }
+
+    if (orgsQuery.data && orgsQuery.data.length === 1 && !isRedirecting) {
+      const orgId = orgsQuery.data[0].id;
+      handleSelectOrg(orgId);
+    }
+  }, [orgsQuery.data, handleSelectOrg, isRedirecting]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedOrgId) {
@@ -153,6 +155,7 @@ export default function SelectOrgPage() {
     );
   }
 
+  // If no orgs found, show loading while redirecting to login
   if (!orgsQuery.data || orgsQuery.data.length === 0) {
     return (
       <Box
@@ -164,32 +167,10 @@ export default function SelectOrgPage() {
           bgcolor: "#f9fafb",
         }}
       >
-        <Box
-          sx={{
-            maxWidth: 450,
-            width: "100%",
-            p: 4,
-            textAlign: "center",
-          }}
-        >
-          <Box sx={{ mb: 3 }}>
-            <Image
-              src="/logo.svg"
-              alt="Contratei"
-              width={120}
-              height={40}
-              priority
-            />
-          </Box>
-          <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
-            Nenhuma Organização Encontrada
-          </Typography>
-          <Typography variant="body1" sx={{ color: "#6b7280", mb: 2 }}>
-            Você ainda não é membro de nenhuma organização.
-          </Typography>
-          <Typography variant="body2" sx={{ color: "#9ca3af" }}>
-            Entre em contato com o administrador da sua organização para ser
-            convidado ou crie uma conta nova para começar.
+        <Box sx={{ textAlign: "center" }}>
+          <CircularProgress size={48} sx={{ color: "#1d2b48" }} />
+          <Typography variant="body2" sx={{ mt: 2, color: "#6b7280" }}>
+            Redirecionando para login...
           </Typography>
         </Box>
       </Box>
@@ -354,9 +335,10 @@ export default function SelectOrgPage() {
                 e.preventDefault();
                 if (!isRedirecting && mounted) {
                   try {
-                    await signOut({
+                    await signOutWithRevocation({
                       callbackUrl: "/auth/signin",
                       redirect: true,
+                      reason: "USER_LOGOUT",
                     });
                   } catch (error) {
                     console.error("Error signing out:", error);

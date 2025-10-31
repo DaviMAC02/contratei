@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import { signOutWithRevocation } from "@/lib/session-utils";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -23,6 +24,7 @@ import {
 import { useTranslation } from "@/lib/use-translation";
 import { trpc } from "@/lib/trpc-client";
 import { useQueryClient } from "@tanstack/react-query";
+import { NotificationBell } from "./notification-bell";
 import {
   Drawer,
   List,
@@ -131,7 +133,6 @@ export function Sidebar({
 
   const handleOrgSwitch = async (newOrgId: string) => {
     try {
-      // Update session with new org
       const response = await fetch("/api/session/update-org", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -139,19 +140,11 @@ export function Sidebar({
       });
 
       if (response.ok) {
-        // Update the NextAuth session
         await update({ selectedOrgId: newOrgId });
-
-        // Invalidate all tRPC queries to force refetch with new org context
         await queryClient.invalidateQueries();
-
         handleOrgMenuClose();
-
-        // Small delay to ensure session and queries are updated before navigation
-        setTimeout(() => {
-          // Navigate to dashboard instead of reload to preserve app state
-          router.push("/dashboard");
-        }, 100);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        window.location.href = "/dashboard?_from_org_select=1";
       }
     } catch (error) {
       console.error("Error switching org:", error);
@@ -210,8 +203,8 @@ export function Sidebar({
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        {/* Logo */}
-        <Box className="flex h-20 items-center border-b border-gray-100 px-6 py-4 justify-center">
+        {/* Logo and Notifications */}
+        <Box className="flex h-20 items-center border-b border-gray-100 px-6 py-4 justify-between">
           <Link href="/dashboard" passHref style={{ cursor: "pointer" }}>
             <Image
               src="/logo.svg"
@@ -222,6 +215,7 @@ export function Sidebar({
               style={{ width: "145px", height: "50px" }}
             />
           </Link>
+          {currentOrgId && <NotificationBell />}
         </Box>
 
         {/* Navigation */}
@@ -472,7 +466,7 @@ export function Sidebar({
               variant="outlined"
               size="small"
               fullWidth
-              onClick={() => signOut()}
+              onClick={() => signOutWithRevocation()}
               startIcon={<LogOut className="h-3.5 w-3.5" />}
               sx={{
                 borderRadius: "10px",

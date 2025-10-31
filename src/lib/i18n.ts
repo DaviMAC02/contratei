@@ -99,10 +99,8 @@ export const translations = {
 
     // Plans
     "plan.free": "Gratuito",
-    "plan.starter": "Starter",
-    "plan.growth": "Growth",
     "plan.pro": "Pro",
-    "plan.studio": "Studio",
+    "plan.enterprise": "Enterprise",
     "plan.monthly": "Mensal",
     "plan.yearly": "Anual",
     "plan.perMonth": "por mês",
@@ -249,10 +247,8 @@ export const translations = {
 
     // Plans
     "plan.free": "Free",
-    "plan.starter": "Starter",
-    "plan.growth": "Growth",
     "plan.pro": "Pro",
-    "plan.studio": "Studio",
+    "plan.enterprise": "Enterprise",
     "plan.monthly": "Monthly",
     "plan.yearly": "Yearly",
     "plan.perMonth": "per month",

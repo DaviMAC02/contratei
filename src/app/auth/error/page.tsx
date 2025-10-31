@@ -1,7 +1,7 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -29,6 +29,21 @@ const errorMessages: Record<string, { title: string; description: string }> = {
     description:
       "Este link de login já foi usado ou expirou. Por favor, solicite um novo link.",
   },
+  OAuthAccountNotLinked: {
+    title: "Conta não encontrada",
+    description:
+      "Esta conta Google não está cadastrada no sistema. Por favor, crie uma conta primeiro para poder fazer login com Google.",
+  },
+  OAuthSignin: {
+    title: "Erro ao fazer login",
+    description:
+      "Não foi possível fazer login com Google. Por favor, tente novamente ou crie uma conta.",
+  },
+  RevokedDevice: {
+    title: "Dispositivo Revogado",
+    description:
+      "O dispositivo que você está usando foi revogado e não pode mais ser usado para acessar sua conta. Entre em contato com o suporte se precisar de ajuda.",
+  },
   Default: {
     title: "Erro de Autenticação",
     description:
@@ -38,11 +53,42 @@ const errorMessages: Record<string, { title: string; description: string }> = {
 
 function AuthErrorContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const error = searchParams?.get("error") || "Default";
 
   const errorInfo = errorMessages[error] || errorMessages.Default;
 
   console.log("❌ Erro de autenticação:", error);
+
+  // Auto-redirect to login for OAuthAccountNotLinked errors (non-existent email)
+  useEffect(() => {
+    if (error === "OAuthAccountNotLinked" || error === "AccessDenied") {
+      // Redirect immediately without showing error page
+      router.replace("/auth/signin");
+    }
+  }, [error, router]);
+
+  // Show loading state while auto-redirecting
+  if (error === "OAuthAccountNotLinked" || error === "AccessDenied") {
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
+        }}
+      >
+        <Box sx={{ textAlign: "center" }}>
+          <CircularProgress size={48} sx={{ color: "#1d2b48" }} />
+          <Typography variant="body2" sx={{ mt: 2, color: "#6b7280" }}>
+            Redirecionando para login...
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -116,6 +162,27 @@ function AuthErrorContent() {
                 Voltar para Login
               </Button>
             </Link>
+            {error === "OAuthAccountNotLinked" && (
+              <Link href="/auth/signup" style={{ textDecoration: "none" }}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  size="large"
+                  sx={{
+                    borderColor: "#1d2b48",
+                    color: "#1d2b48",
+                    "&:hover": {
+                      borderColor: "#141f35",
+                      bgcolor: "#f9fafb",
+                    },
+                    textTransform: "none",
+                    py: 1.5,
+                  }}
+                >
+                  Criar Conta
+                </Button>
+              </Link>
+            )}
 
             {error === "Verification" && (
               <Typography
