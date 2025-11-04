@@ -2,9 +2,13 @@
   "buildCommand": "pnpm run build",
   "functions": {
     "src/app/api/**": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "memory": 1024
     }
   },
+  "regions": ["gru1"],
+  "framework": "nextjs",
+  "outputDirectory": ".next",
   "crons": [
     {
       "path": "/api/cron/daily",

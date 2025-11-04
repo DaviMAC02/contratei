@@ -32,7 +32,7 @@ export default function DashboardLayoutClient({
   }, [pathname]);
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen" style={{ height: '100dvh' }}>
       <Sidebar
         orgId={orgId}
         orgName={orgName}
@@ -41,7 +41,7 @@ export default function DashboardLayoutClient({
       />
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile Header with Hamburger */}
-        <div className="lg:hidden flex items-center justify-between h-16 border-b px-4 bg-card">
+        <div className="lg:hidden flex items-center justify-between h-16 border-b px-4 bg-card shrink-0">
           <Box sx={{ display: "flex", alignItems: "center", flex: 1 }}>
             <IconButton
               onClick={() => setSidebarOpen(true)}
@@ -59,6 +59,10 @@ export default function DashboardLayoutClient({
           className={`flex-1 overflow-y-auto bg-background transition-opacity duration-150 ${
             isTransitioning ? "opacity-0" : "opacity-100"
           }`}
+          style={{ 
+            WebkitOverflowScrolling: 'touch',
+            minHeight: 0
+          }}
         >
           {children}
         </main>
