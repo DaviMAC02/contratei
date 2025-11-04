@@ -28,30 +28,34 @@ export function PostHogPageview(): React.JSX.Element {
   const { data: session } = useSession();
 
   useEffect(() => {
-    if (pathname && posthog.__loaded) {
-      let url = window.origin + pathname;
-      if (searchParams && searchParams.toString()) {
-        url = url + `?${searchParams.toString()}`;
-      }
-      console.log("📊 PostHog capturing pageview:", url);
-      posthog.capture("$pageview", {
-        $current_url: url,
-      });
+    if (typeof window === "undefined" || !pathname || !posthog.__loaded) {
+      return;
     }
+
+    let url = window.origin + pathname;
+    if (searchParams && searchParams.toString()) {
+      url = url + `?${searchParams.toString()}`;
+    }
+    console.log("📊 PostHog capturing pageview:", url);
+    posthog.capture("$pageview", {
+      $current_url: url,
+    });
   }, [pathname, searchParams]);
 
   // Identify user when session is available
   useEffect(() => {
-    if (session?.user && posthog.__loaded) {
-      console.log("👤 PostHog identifying user:", session.user.id);
-      posthog.identify(session.user.id, {
-        email: session.user.email,
-        name: session.user.name,
-      });
+    if (typeof window === "undefined" || !session?.user || !posthog.__loaded) {
+      return;
     }
+
+    console.log("👤 PostHog identifying user:", session.user.id);
+    posthog.identify(session.user.id, {
+      email: session.user.email,
+      name: session.user.name,
+    });
   }, [session]);
 
-  return <></>;
+  return null;
 }
 
 // Helper functions to track feature usage

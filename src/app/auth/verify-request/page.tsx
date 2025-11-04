@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Card,
@@ -13,7 +13,7 @@ import {
 import { Mail, CheckCircle, RefreshCw } from "lucide-react";
 import { signIn } from "next-auth/react";
 
-export default function VerifyRequestPage() {
+function VerifyRequestContent() {
   const searchParams = useSearchParams();
   const emailFromUrl = searchParams?.get("email") || "";
 
@@ -217,5 +217,27 @@ export default function VerifyRequestPage() {
         </CardContent>
       </Card>
     </Box>
+  );
+}
+
+export default function VerifyRequestPage() {
+  return (
+    <Suspense
+      fallback={
+        <Box
+          sx={{
+            minHeight: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      }
+    >
+      <VerifyRequestContent />
+    </Suspense>
   );
 }

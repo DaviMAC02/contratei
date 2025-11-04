@@ -28,7 +28,9 @@ export default function RootLayout({
           <TRPCProvider>
             <ToastProvider>
               <ErrorBoundary>
-                <NavigationProgress />
+                <Suspense fallback={null}>
+                  <NavigationProgress />
+                </Suspense>
                 <Suspense fallback={null}>
                   <PostHogPageview />
                 </Suspense>

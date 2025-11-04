@@ -11,8 +11,16 @@ export function NavigationProgress() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isNavigating, setIsNavigating] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Ensure we're mounted before showing anything to avoid hydration issues
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
+    if (!isMounted) return;
+
     // Show loading bar when navigation starts
     setIsNavigating(true);
 
@@ -22,9 +30,10 @@ export function NavigationProgress() {
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [pathname, searchParams]);
+  }, [pathname, searchParams, isMounted]);
 
-  if (!isNavigating) return null;
+  // Don't render anything until mounted or if not navigating
+  if (!isMounted || !isNavigating) return null;
 
   return (
     <div className="fixed top-0 left-0 right-0 z-[9999]">
