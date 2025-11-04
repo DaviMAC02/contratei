@@ -95,7 +95,8 @@ export function Sidebar({
     if (isOpen && onClose) {
       onClose();
     }
-  }, [pathname, isOpen, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   // Clear navigating state when pathname changes
   useEffect(() => {
