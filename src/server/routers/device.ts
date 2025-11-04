@@ -2,7 +2,6 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
-import { cookies } from "next/headers";
 import { getClientIp, getLocationFromIp } from "@/lib/geoip";
 
 export const deviceRouter = createTRPCRouter({
@@ -73,8 +72,7 @@ export const deviceRouter = createTRPCRouter({
       });
 
       if (device && device.revoked && device.userId === userId) {
-        const cookieStore = await cookies();
-        const sessionToken = cookieStore.get("authjs.session-token")?.value;
+        const sessionToken = ctx.session.dbSessionId; // Use stable session ID from JWT
 
         if (sessionToken) {
           await ctx.prisma.session.updateMany({
@@ -174,17 +172,16 @@ export const deviceRouter = createTRPCRouter({
         );
       }
 
-      const cookieStore = await cookies();
-      const sessionToken = cookieStore.get("authjs.session-token")?.value;
+      const sessionToken = ctx.session.dbSessionId; // Use stable session ID from JWT
 
       if (!sessionToken) {
         console.warn(
-          `⚠️ No session token found when linking device. User: ${userId}, Device: ${device.id}`
+          `⚠️ No session ID in JWT when linking device. User: ${userId}, Device: ${device.id}`
         );
         return {
           success: true,
           deviceId: device.id,
-          warning: "No session token found - session not linked",
+          warning: "No session ID in JWT - session not linked",
         };
       }
 
@@ -269,13 +266,12 @@ export const deviceRouter = createTRPCRouter({
 
   check: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.session.user.id;
-    const cookieStore = await cookies();
-    const sessionToken = cookieStore.get("authjs.session-token")?.value;
+    const sessionToken = ctx.session.dbSessionId; // Use stable session ID from JWT
 
     if (!sessionToken) {
       throw new TRPCError({
         code: "UNAUTHORIZED",
-        message: "No session token",
+        message: "No session ID in JWT",
       });
     }
 
@@ -327,13 +323,12 @@ export const deviceRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const cookieStore = await cookies();
-      const sessionToken = cookieStore.get("authjs.session-token")?.value;
+      const sessionToken = ctx.session.dbSessionId; // Use stable session ID from JWT
 
       if (!sessionToken) {
         throw new TRPCError({
           code: "UNAUTHORIZED",
-          message: "No session token",
+          message: "No session ID in JWT",
         });
       }
 
@@ -374,14 +369,13 @@ export const deviceRouter = createTRPCRouter({
       return { success: true, count: result.count };
     }),
 
-  checkSession: publicProcedure.query(async ({ ctx }) => {
-    const cookieStore = await cookies();
-    const sessionToken = cookieStore.get("authjs.session-token")?.value;
+  checkSession: protectedProcedure.query(async ({ ctx }) => {
+    const sessionToken = ctx.session.dbSessionId; // Use stable session ID from JWT
 
     if (!sessionToken) {
       return {
         valid: false,
-        reason: "NO_SESSION_TOKEN",
+        reason: "NO_SESSION_ID_IN_JWT",
       };
     }
 

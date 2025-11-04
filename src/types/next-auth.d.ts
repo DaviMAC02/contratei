@@ -10,6 +10,7 @@ declare module "next-auth" {
       image?: string | null;
     };
     selectedOrgId?: string;
+    dbSessionId?: string;
   }
 
   interface User {
@@ -29,5 +30,6 @@ declare module "next-auth/jwt" {
     iat?: number;
     lastActivity?: number;
     selectedOrgId?: string;
+    dbSessionId?: string;
   }
 }

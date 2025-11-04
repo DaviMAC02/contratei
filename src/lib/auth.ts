@@ -259,6 +259,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.email = token.email!;
         session.user.image = token.picture;
         session.selectedOrgId = token.selectedOrgId;
+        session.dbSessionId = token.dbSessionId; // Store DB session ID for revocation checks
       }
       return session;
     },
@@ -268,6 +269,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.email = user.email;
         token.name = user.name;
         token.picture = user.image;
+        
+        // Create a stable session ID for this JWT (only on first login)
+        if (!token.dbSessionId) {
+          // Generate a unique session ID that will be stored in DB
+          const { nanoid } = await import("nanoid");
+          token.dbSessionId = nanoid();
+        }
       }
 
       if (trigger === "update" && session?.selectedOrgId) {

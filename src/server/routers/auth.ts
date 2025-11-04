@@ -214,14 +214,12 @@ export const authRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const { cookies } = await import("next/headers");
-      const cookieStore = await cookies();
-      const sessionToken = cookieStore.get("authjs.session-token")?.value;
+      const sessionToken = ctx.session.dbSessionId; // Use stable session ID from JWT
 
       if (!sessionToken) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "No session token found",
+          message: "No session ID found in JWT",
         });
       }
 

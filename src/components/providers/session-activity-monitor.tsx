@@ -8,7 +8,7 @@ import { trpc } from "@/lib/trpc-client";
 
 const INACTIVITY_TIMEOUT = 20 * 60 * 1000; // 20 minutes in milliseconds
 const SESSION_CHECK_INTERVAL = 60 * 1000; // Check every minute
-const DB_SESSION_CHECK_INTERVAL = 2 * 60 * 1000; // Check DB every 2 minutes
+const DB_SESSION_CHECK_INTERVAL = 10 * 1000; // Check DB every 10 seconds for revocation
 const ACTIVITY_EVENTS = [
   "mousedown",
   "mousemove",
@@ -28,15 +28,17 @@ export function SessionActivityMonitor({
   const lastActivityRef = useRef<number>(0);
   const inactivityTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const sessionCheckTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
-  const dbSessionCheckTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
-  // Use tRPC query for checking session validity in DB
-  const { data: sessionValidity, refetch: refetchSessionValidity } =
-    trpc.device.checkSession.useQuery(undefined, {
+  const { data: sessionValidity } = trpc.device.checkSession.useQuery(
+    undefined,
+    {
       enabled: status === "authenticated",
-      refetchInterval: false, // We'll manually refetch via interval
+      refetchInterval: DB_SESSION_CHECK_INTERVAL,
+      refetchIntervalInBackground: true,
       retry: false,
-    });
+      staleTime: 0,
+    }
+  );
 
   const updateActivity = useCallback(() => {
     lastActivityRef.current = Date.now();
@@ -80,7 +82,7 @@ export function SessionActivityMonitor({
 
       // Sign out without trying to revoke again (already revoked in DB)
       signOutWithRevocation({
-        callbackUrl: `/auth/signin?error=${sessionValidity.reason}`,
+        callbackUrl: "/auth/signin?revoked=true",
         reason: revokeReason,
       });
     }
@@ -107,11 +109,6 @@ export function SessionActivityMonitor({
       }
     }, SESSION_CHECK_INTERVAL);
 
-    // Periodically check DB for session revocation (e.g., login from another device)
-    dbSessionCheckTimerRef.current = setInterval(() => {
-      refetchSessionValidity();
-    }, DB_SESSION_CHECK_INTERVAL);
-
     return () => {
       ACTIVITY_EVENTS.forEach((event) => {
         window.removeEventListener(event, updateActivity);
@@ -122,17 +119,8 @@ export function SessionActivityMonitor({
       if (sessionCheckTimerRef.current) {
         clearInterval(sessionCheckTimerRef.current);
       }
-      if (dbSessionCheckTimerRef.current) {
-        clearInterval(dbSessionCheckTimerRef.current);
-      }
     };
-  }, [
-    status,
-    updateActivity,
-    checkInactivity,
-    refreshSession,
-    refetchSessionValidity,
-  ]);
+  }, [status, updateActivity, checkInactivity, refreshSession]);
 
   // Track pathname changes only (not status changes to avoid false activity on session refresh)
   useEffect(() => {

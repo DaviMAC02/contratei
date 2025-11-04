@@ -23,6 +23,7 @@ function SignInForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
   const timeout = searchParams?.get("timeout");
+  const revoked = searchParams?.get("revoked");
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +104,14 @@ function SignInForm() {
             <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
               Sua sessão expirou por inatividade. Por favor, faça login
               novamente.
+            </Alert>
+          )}
+
+          {/* Revoked Session Alert */}
+          {revoked === "true" && (
+            <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
+              Sua sessão foi encerrada porque você fez login em outro
+              dispositivo. Por favor, faça login novamente.
             </Alert>
           )}
 
