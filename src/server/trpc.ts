@@ -7,7 +7,6 @@ import { prisma } from "@/lib/prisma";
 import { nanoid } from "nanoid";
 import type { OrgRole } from "@prisma/client";
 
-// Context type
 export async function createTRPCContext(opts?: FetchCreateContextFnOptions) {
   const session = await auth();
   const requestId = nanoid();
@@ -22,14 +21,11 @@ export async function createTRPCContext(opts?: FetchCreateContextFnOptions) {
 
 export type Context = Awaited<ReturnType<typeof createTRPCContext>>;
 
-// Initialize tRPC with enhanced error handling
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
-    // Extract user-friendly error message
     let message = shape.message;
 
-    // Format Zod validation errors
     if (error.cause instanceof ZodError) {
       const zodError = error.cause.flatten();
       const firstError = Object.values(zodError.fieldErrors)[0]?.[0];
@@ -38,11 +34,9 @@ const t = initTRPC.context<Context>().create({
       }
     }
 
-    // Enhance specific error codes with Portuguese messages
     if (error.code === "UNAUTHORIZED") {
       message = "Sua sessão expirou. Faça login novamente.";
     } else if (error.code === "FORBIDDEN") {
-      // Keep custom message if provided, otherwise use default
       if (message === "FORBIDDEN" || !message) {
         message = "Você não tem permissão para realizar esta ação.";
       }
@@ -74,11 +68,9 @@ const t = initTRPC.context<Context>().create({
   },
 });
 
-// Export reusable router and procedure helpers
 export const createTRPCRouter = t.router;
 export const publicProcedure = t.procedure;
 
-// Middleware to ensure user is authenticated
 const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
   if (!ctx.session?.user) {
     throw new TRPCError({
@@ -93,12 +85,8 @@ const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
   });
 });
 
-// Protected procedure (requires authentication)
 export const protectedProcedure = t.procedure.use(enforceUserIsAuthed);
 
-// Middleware to inject current org context
-// Note: This runs BEFORE input parsing, so we skip validation here
-// and let the procedure's input schema handle orgId validation
 export const withOrg = t.middleware(async ({ ctx, next }) => {
   if (!ctx.session?.user) {
     throw new TRPCError({
@@ -107,7 +95,6 @@ export const withOrg = t.middleware(async ({ ctx, next }) => {
     });
   }
 
-  // Pass through - orgId validation will happen in the procedure
   return next({
     ctx: {
       ...ctx,
@@ -115,10 +102,8 @@ export const withOrg = t.middleware(async ({ ctx, next }) => {
   });
 });
 
-// Org-scoped procedure base (just ensures authentication)
 const orgProcedureBase = protectedProcedure.use(withOrg);
 
-// Helper to validate org membership (use this in procedures)
 async function validateOrgMembership(
   prisma: any,
   userId: string,
@@ -146,10 +131,8 @@ async function validateOrgMembership(
   return { org: membership.org, membership, userRole: membership.role };
 }
 
-// Org-scoped procedure
 export const orgProcedure = orgProcedureBase;
 
-// Role-based access control helper (call after validateOrgMembership)
 export function checkRole(userRole: OrgRole, ...allowedRoles: OrgRole[]) {
   if (!allowedRoles.includes(userRole)) {
     throw new TRPCError({
@@ -161,7 +144,6 @@ export function checkRole(userRole: OrgRole, ...allowedRoles: OrgRole[]) {
   }
 }
 
-// Legacy middleware for backwards compatibility (deprecated)
 export function requireRole(...allowedRoles: OrgRole[]) {
   return t.middleware(async ({ ctx, next }) => {
     const userRole = (ctx as any).userRole as OrgRole | undefined;
@@ -186,7 +168,6 @@ export function requireRole(...allowedRoles: OrgRole[]) {
   });
 }
 
-// Audit log helper
 export async function createAuditLog(params: {
   orgId: string;
   userId: string;

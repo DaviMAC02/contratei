@@ -9,7 +9,6 @@ import {
 import { TRPCError } from "@trpc/server";
 import { hasPlanFeature, type PlanName } from "@/lib/stripe";
 
-// Helper to validate org membership
 async function validateOrgMembership(
   prisma: any,
   userId: string,
@@ -42,7 +41,6 @@ async function validateOrgMembership(
 }
 
 export const fileRouter = createTRPCRouter({
-  // Upload file directly to database
   uploadFile: orgProcedure
     .input(
       z.object({
@@ -86,7 +84,6 @@ export const fileRouter = createTRPCRouter({
         });
       }
 
-      // Create file record with content in database
       const file = await ctx.prisma.contractFile.create({
         data: {
           contractId: input.contractId,
@@ -113,7 +110,6 @@ export const fileRouter = createTRPCRouter({
       return file;
     }),
 
-  // List files for contract (excluding file content for performance)
   listFiles: orgProcedure
     .input(
       z.object({
@@ -134,7 +130,6 @@ export const fileRouter = createTRPCRouter({
           sizeBytes: true,
           uploadedAt: true,
           checksum: true,
-          // Exclude fileContent and mimeType for performance
         },
         orderBy: { uploadedAt: "desc" },
       });
@@ -142,7 +137,6 @@ export const fileRouter = createTRPCRouter({
       return files;
     }),
 
-  // Get file content for download
   getFileContent: orgProcedure
     .input(
       z.object({
@@ -162,7 +156,6 @@ export const fileRouter = createTRPCRouter({
         });
       }
 
-      // Log download
       await createAuditLog({
         orgId: input.orgId,
         userId: ctx.session!.user.id,
@@ -180,7 +173,6 @@ export const fileRouter = createTRPCRouter({
       };
     }),
 
-  // Delete file
   deleteFile: orgProcedure
     .input(
       z.object({
@@ -208,7 +200,6 @@ export const fileRouter = createTRPCRouter({
         });
       }
 
-      // Delete from database (files are now stored directly in database)
       await ctx.prisma.contractFile.delete({
         where: { id: input.fileId },
       });

@@ -13,7 +13,6 @@ import { nanoid } from "nanoid";
 import { resend, emailTemplates } from "@/lib/email";
 import { addDays } from "date-fns";
 
-// Helper to validate org membership
 async function validateOrgMembership(
   prisma: any,
   userId: string,
@@ -41,7 +40,6 @@ async function validateOrgMembership(
   return { org: membership.org, membership, userRole: membership.role };
 }
 
-// Country to currency/locale mapping
 const countryConfig: Record<
   string,
   { currency: string; locale: string; timezone: string }

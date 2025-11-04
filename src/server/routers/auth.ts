@@ -11,15 +11,13 @@ export const authRouter = createTRPCRouter({
           email: z.string().email(),
           name: z.string().min(2),
           orgName: z.string().min(2),
-          country: z.string().length(2), // ISO country code
+          country: z.string().length(2),
           orgType: z.enum(["PF", "PJ"]).default("PF"),
-          // Identification (BR focus)
           cpf: z.string().optional(),
           legalName: z.string().optional(),
           tradeName: z.string().optional(),
           cnpj: z.string().optional(),
           ie: z.string().optional(),
-          // Address
           address: z
             .object({
               cep: z.string().optional(),
@@ -40,7 +38,6 @@ export const authRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { email, name, orgName, country } = input;
 
-      // Check if user already exists
       const existingUser = await ctx.prisma.user.findUnique({
         where: { email },
         include: {
@@ -51,7 +48,6 @@ export const authRouter = createTRPCRouter({
       });
 
       if (existingUser) {
-        // Check if user already owns an organization
         if (existingUser.memberships.length > 0) {
           throw new TRPCError({
             code: "CONFLICT",
@@ -65,13 +61,11 @@ export const authRouter = createTRPCRouter({
         });
       }
 
-      // Determine currency and locale based on country
       const currency = country === "BR" ? "BRL" : "USD";
       const locale = country === "BR" ? "pt-BR" : "en-US";
       const timezone =
         country === "BR" ? "America/Sao_Paulo" : "America/New_York";
 
-      // Generate slug from org name
       const baseSlug = orgName
         .toLowerCase()
         .normalize("NFD")
@@ -79,7 +73,6 @@ export const authRouter = createTRPCRouter({
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "");
 
-      // Ensure slug is unique
       let slug = baseSlug;
       let counter = 1;
       while (await ctx.prisma.org.findUnique({ where: { slug } })) {
@@ -87,10 +80,8 @@ export const authRouter = createTRPCRouter({
         counter++;
       }
 
-      // Create user and organization in a transaction
       try {
         const result = await ctx.prisma.$transaction(async (tx) => {
-          // Create user
           const user = await tx.user.create({
             data: {
               email,
@@ -98,7 +89,6 @@ export const authRouter = createTRPCRouter({
             },
           });
 
-          // Create organization
           const org = await tx.org.create({
             data: {
               name: orgName,
@@ -111,13 +101,11 @@ export const authRouter = createTRPCRouter({
               maxContracts: 3,
               maxUsers: 1,
               orgType: input.orgType,
-              // Identification
               cpf: input.orgType === "PF" ? input.cpf : undefined,
               legalName: input.orgType === "PJ" ? input.legalName : undefined,
               tradeName: input.orgType === "PJ" ? input.tradeName : undefined,
               cnpj: input.orgType === "PJ" ? input.cnpj : undefined,
               ie: input.orgType === "PJ" ? input.ie : undefined,
-              // Address
               addressCep: input.address?.cep,
               addressStreet: input.address?.street,
               addressNumber: input.address?.number,
@@ -128,7 +116,6 @@ export const authRouter = createTRPCRouter({
             } as any,
           });
 
-          // Create membership with OWNER role
           await tx.orgMember.create({
             data: {
               userId: user.id,
@@ -137,7 +124,6 @@ export const authRouter = createTRPCRouter({
             },
           });
 
-          // Create audit log
           await tx.auditLog.create({
             data: {
               orgId: org.id,
@@ -163,7 +149,6 @@ export const authRouter = createTRPCRouter({
           orgId: result.org.id,
         };
       } catch (error: any) {
-        // Handle Prisma unique constraint violations
         if (error.code === "P2002") {
           const target = error.meta?.target;
           if (target && Array.isArray(target)) {
@@ -185,7 +170,6 @@ export const authRouter = createTRPCRouter({
             message: "Já existe uma organização com estes dados.",
           });
         }
-        // Re-throw other errors
         throw error;
       }
     }),
@@ -242,7 +226,7 @@ export const authRouter = createTRPCRouter({
       }
 
       const sessionExpiry = new Date();
-      sessionExpiry.setDate(sessionExpiry.getDate() + 30);
+      sessionExpiry.setHours(sessionExpiry.getHours() + 24); // 24 hours to match NextAuth maxAge
 
       const revokedCount = await ctx.prisma.session.updateMany({
         where: {

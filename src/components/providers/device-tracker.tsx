@@ -16,14 +16,12 @@ export function DeviceTracker() {
   const trackDeviceMutation = trpc.device.track.useMutation();
 
   useEffect(() => {
-    // Only track when user is authenticated and hasn't been tracked yet
     if (status === "authenticated" && session?.user && !hasTracked) {
       const trackDevice = async () => {
         try {
           const deviceId = await getDeviceFingerprint();
           const deviceMetadata = getDeviceMetadata();
 
-          // Get user's IP and location from browser (if available)
           let location = null;
           try {
             const response = await fetch("https://ipapi.co/json/").catch(() =>
@@ -45,7 +43,6 @@ export function DeviceTracker() {
             console.error("Error getting location:", error);
           }
 
-          // Track device using tRPC
           await trackDeviceMutation.mutateAsync({
             deviceId,
             deviceMetadata,
@@ -57,7 +54,6 @@ export function DeviceTracker() {
         } catch (error: any) {
           console.error("Error tracking device:", error);
           
-          // If device is revoked, sign out the user
           if (error?.data?.code === "FORBIDDEN" && error?.data?.cause?.code === "REVOKED_DEVICE") {
             console.error("Device revoked, signing out:", error.data.cause.reason);
             await signOutWithRevocation({
@@ -68,7 +64,6 @@ export function DeviceTracker() {
         }
       };
 
-      // Small delay to ensure session is fully established
       const timer = setTimeout(() => {
         trackDevice();
       }, 500);
@@ -77,7 +72,6 @@ export function DeviceTracker() {
     }
   }, [session, status, hasTracked, trackDeviceMutation]);
 
-  // Clear fingerprint on logout
   useEffect(() => {
     if (status === "unauthenticated") {
       clearDeviceFingerprint();
@@ -85,6 +79,6 @@ export function DeviceTracker() {
     }
   }, [status]);
 
-  return null; // This component doesn't render anything
+  return null;
 }
 

@@ -4,9 +4,11 @@ import { useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { signOutWithRevocation } from "@/lib/session-utils";
 import { usePathname } from "next/navigation";
+import { trpc } from "@/lib/trpc-client";
 
 const INACTIVITY_TIMEOUT = 20 * 60 * 1000; // 20 minutes in milliseconds
 const SESSION_CHECK_INTERVAL = 60 * 1000; // Check every minute
+const DB_SESSION_CHECK_INTERVAL = 2 * 60 * 1000; // Check DB every 2 minutes
 const ACTIVITY_EVENTS = [
   "mousedown",
   "mousemove",
@@ -21,14 +23,30 @@ export function SessionActivityMonitor({
 }: {
   children: React.ReactNode;
 }) {
-  const { data: session, status, update } = useSession();
+  const { status, update } = useSession();
   const pathname = usePathname();
-  const lastActivityRef = useRef<number>(Date.now());
+  const lastActivityRef = useRef<number>(0);
   const inactivityTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const sessionCheckTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const dbSessionCheckTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+  // Use tRPC query for checking session validity in DB
+  const { data: sessionValidity, refetch: refetchSessionValidity } =
+    trpc.device.checkSession.useQuery(undefined, {
+      enabled: status === "authenticated",
+      refetchInterval: false, // We'll manually refetch via interval
+      retry: false,
+    });
 
   const updateActivity = useCallback(() => {
     lastActivityRef.current = Date.now();
+  }, []);
+
+  // Initialize lastActivityRef on client side only
+  useEffect(() => {
+    if (lastActivityRef.current === 0) {
+      lastActivityRef.current = Date.now();
+    }
   }, []);
 
   const checkInactivity = useCallback(async () => {
@@ -36,8 +54,6 @@ export function SessionActivityMonitor({
     const timeSinceLastActivity = now - lastActivityRef.current;
 
     if (timeSinceLastActivity >= INACTIVITY_TIMEOUT) {
-      console.log("Session expired due to inactivity");
-      
       await signOutWithRevocation({
         callbackUrl: "/auth/signin?timeout=true",
         reason: "INACTIVITY_TIMEOUT",
@@ -49,12 +65,26 @@ export function SessionActivityMonitor({
     if (status === "authenticated") {
       try {
         await update();
-        console.log("Session refreshed");
       } catch (error) {
         console.error("Failed to refresh session:", error);
       }
     }
   }, [status, update]);
+
+  // Check if session is valid in DB and sign out if revoked
+  useEffect(() => {
+    if (sessionValidity && !sessionValidity.valid) {
+      console.log("Session no longer valid:", sessionValidity.reason);
+      const revokeReason =
+        sessionValidity.revokeReason || sessionValidity.reason;
+
+      // Sign out without trying to revoke again (already revoked in DB)
+      signOutWithRevocation({
+        callbackUrl: `/auth/signin?error=${sessionValidity.reason}`,
+        reason: revokeReason,
+      });
+    }
+  }, [sessionValidity]);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -65,7 +95,10 @@ export function SessionActivityMonitor({
       window.addEventListener(event, updateActivity, { passive: true });
     });
 
-    inactivityTimerRef.current = setInterval(checkInactivity, 60 * 1000);
+    inactivityTimerRef.current = setInterval(
+      checkInactivity,
+      SESSION_CHECK_INTERVAL
+    );
 
     sessionCheckTimerRef.current = setInterval(() => {
       const timeSinceLastActivity = Date.now() - lastActivityRef.current;
@@ -73,6 +106,11 @@ export function SessionActivityMonitor({
         refreshSession();
       }
     }, SESSION_CHECK_INTERVAL);
+
+    // Periodically check DB for session revocation (e.g., login from another device)
+    dbSessionCheckTimerRef.current = setInterval(() => {
+      refetchSessionValidity();
+    }, DB_SESSION_CHECK_INTERVAL);
 
     return () => {
       ACTIVITY_EVENTS.forEach((event) => {
@@ -84,14 +122,25 @@ export function SessionActivityMonitor({
       if (sessionCheckTimerRef.current) {
         clearInterval(sessionCheckTimerRef.current);
       }
+      if (dbSessionCheckTimerRef.current) {
+        clearInterval(dbSessionCheckTimerRef.current);
+      }
     };
-  }, [status, updateActivity, checkInactivity, refreshSession]);
+  }, [
+    status,
+    updateActivity,
+    checkInactivity,
+    refreshSession,
+    refetchSessionValidity,
+  ]);
 
+  // Track pathname changes only (not status changes to avoid false activity on session refresh)
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status === "authenticated" && pathname) {
       updateActivity();
     }
-  }, [pathname, status, updateActivity]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]); // Only track pathname, not status or updateActivity
 
   useEffect(() => {
     if (status !== "authenticated") {

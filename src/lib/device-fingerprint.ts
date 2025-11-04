@@ -1,10 +1,3 @@
-/**
- * Device Fingerprint Utility
- *
- * Generates a consistent device fingerprint using FingerprintJS.
- * The fingerprint is cached in sessionStorage for the duration of the browser session.
- */
-
 import FingerprintJS from '@fingerprintjs/fingerprintjs'
 
 let fpPromise: Promise<{ get: () => Promise<{ visitorId: string }> }> | null =
@@ -13,9 +6,6 @@ let cachedFingerprint: string | null = null
 
 const STORAGE_KEY = 'device_fingerprint'
 
-/**
- * Initialize FingerprintJS agent (done once per page load)
- */
 function initFingerprintJS() {
   if (!fpPromise) {
     fpPromise = FingerprintJS.load()
@@ -23,10 +13,6 @@ function initFingerprintJS() {
   return fpPromise
 }
 
-/**
- * Get device fingerprint
- * Returns cached value if available, otherwise generates new one
- */
 export async function getDeviceFingerprint(): Promise<string> {
   if (cachedFingerprint) {
     return cachedFingerprint
@@ -60,9 +46,6 @@ export async function getDeviceFingerprint(): Promise<string> {
   }
 }
 
-/**
- * Clear cached fingerprint (useful for testing or logout)
- */
 export function clearDeviceFingerprint() {
   cachedFingerprint = null
   if (typeof window !== 'undefined') {
@@ -70,9 +53,6 @@ export function clearDeviceFingerprint() {
   }
 }
 
-/**
- * Get device metadata for enhanced tracking
- */
 export function getDeviceMetadata() {
   if (typeof window === 'undefined') {
     return {

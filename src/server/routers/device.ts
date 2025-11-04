@@ -36,17 +36,15 @@ export const deviceRouter = createTRPCRouter({
       const { deviceId, deviceMetadata, location: clientLocation } = input;
       const userId = ctx.session.user.id;
 
-      // Get client IP from headers (server-side, more reliable)
       const headers = ctx.headers;
-      const clientIp = headers 
-        ? (getClientIp({ headers }) || 
-           headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-           headers.get("x-real-ip") ||
-           headers.get("cf-connecting-ip") ||
-           "unknown")
+      const clientIp = headers
+        ? getClientIp({ headers }) ||
+          headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+          headers.get("x-real-ip") ||
+          headers.get("cf-connecting-ip") ||
+          "unknown"
         : "unknown";
 
-      // If location not provided by client, get it from IP using GeoIP API
       let location = clientLocation;
       if (!location && clientIp !== "unknown") {
         try {
@@ -63,19 +61,18 @@ export const deviceRouter = createTRPCRouter({
             };
           }
         } catch (error) {
-          console.error("Error getting location from IP in device tracking:", error);
+          console.error(
+            "Error getting location from IP in device tracking:",
+            error
+          );
         }
       }
 
-      // Find existing device by deviceId (fingerprint) - devices are unique per physical device
-      // The same device can be used across multiple sessions by the same user
       let device = await ctx.prisma.device.findUnique({
         where: { deviceId },
       });
 
-      // Check if device is revoked (if it belongs to this user)
       if (device && device.revoked && device.userId === userId) {
-        // Device is revoked - revoke current session and deny access
         const cookieStore = await cookies();
         const sessionToken = cookieStore.get("authjs.session-token")?.value;
 
@@ -107,7 +104,6 @@ export const deviceRouter = createTRPCRouter({
         });
       }
 
-      // Prepare device data for update/create
       const deviceData: {
         userId: string;
         deviceId: string;
@@ -124,7 +120,8 @@ export const deviceRouter = createTRPCRouter({
         userId,
         deviceId,
         deviceFingerprintHash: deviceId,
-        userAgent: deviceMetadata?.userAgent || headers?.get("user-agent") || null,
+        userAgent:
+          deviceMetadata?.userAgent || headers?.get("user-agent") || null,
         platform: deviceMetadata?.platform || null,
         language: deviceMetadata?.language || null,
         screenResolution: deviceMetadata?.screenResolution || null,
@@ -142,29 +139,17 @@ export const deviceRouter = createTRPCRouter({
       };
 
       if (device) {
-        // Device already exists - reuse it and update last seen info
-        // Important: Same physical device can be used by different users (shared computer),
-        // but we update the device with current user's info for this session
-        
         if (device.userId !== userId) {
-          // Device is registered to different user - this is OK for shared devices
-          // Update the device to current user for this session, but keep tracking
-          // Note: In a production system, you might want to handle this differently
-          // (e.g., allow multiple users per device, or show warning)
           console.log(
             `Device ${deviceId} was previously used by user ${device.userId}, now used by ${userId}`
           );
         }
 
-        // Update IP history
         const ipHistory = (device.ipHistory as string[]) || [];
         if (!ipHistory.includes(clientIp)) {
           ipHistory.push(clientIp);
         }
 
-        // Update device with latest info (lastSeen, IP, location, etc.)
-        // Note: We update userId in case device was previously used by another user
-        // deviceData already contains userId, so we don't need to set it separately
         device = await ctx.prisma.device.update({
           where: { id: device.id },
           data: {
@@ -173,7 +158,6 @@ export const deviceRouter = createTRPCRouter({
           },
         });
       } else {
-        // Create new device - this is the first time this physical device is being tracked
         const ipHistory = [clientIp];
 
         device = await ctx.prisma.device.create({
@@ -190,11 +174,6 @@ export const deviceRouter = createTRPCRouter({
         );
       }
 
-      // Link current session to device and store analytics data in database
-      // IMPORTANT: JWT tokens only contain essential session data (user id, email, etc.)
-      // All analytics data (device, IP, location, coordinates) is stored in DB Session records
-      // Note: Session records are created in /api/session/update-org AFTER org selection
-      // We only update existing sessions here - never create them
       const cookieStore = await cookies();
       const sessionToken = cookieStore.get("authjs.session-token")?.value;
 
@@ -209,16 +188,12 @@ export const deviceRouter = createTRPCRouter({
         };
       }
 
-      // Find or create session - ensure it exists before linking device
       let currentSession = await ctx.prisma.session.findUnique({
         where: {
           sessionToken,
         },
       });
 
-      // Session should already exist (created in /api/session/update-org after org selection)
-      // If it doesn't exist, don't create it here - wait for org selection
-      // This prevents creating sessions before org is selected
       if (!currentSession) {
         console.warn(
           `⚠️ Session not found for device tracking - waiting for org selection. User: ${userId}, Device: ${device.id}`
@@ -226,11 +201,11 @@ export const deviceRouter = createTRPCRouter({
         return {
           success: true,
           deviceId: device.id,
-          warning: "Session not created yet - will be created after org selection",
+          warning:
+            "Session not created yet - will be created after org selection",
         };
       }
 
-      // Verify session belongs to current user and is not revoked
       if (currentSession.userId !== userId) {
         console.warn(
           `⚠️ Session ${currentSession.id} belongs to different user. Expected: ${userId}, Found: ${currentSession.userId}`
@@ -253,35 +228,32 @@ export const deviceRouter = createTRPCRouter({
         };
       }
 
-      // Update session with device and analytics data (IP, location, GPS)
-      // Only update IP/location if session doesn't already have them (preserve initial values)
       await ctx.prisma.session.update({
         where: { id: currentSession.id },
         data: {
           deviceId: device.id,
-          // Update IP only if not set yet or if current IP is "unknown"
-          ...(currentSession.ip === null || currentSession.ip === "unknown" 
-            ? { ip: clientIp !== "unknown" ? clientIp : null } 
+          ...(currentSession.ip === null || currentSession.ip === "unknown"
+            ? { ip: clientIp !== "unknown" ? clientIp : null }
             : {}),
-          // Update userAgent only if not set yet
-          ...(currentSession.userAgent === null && deviceData.userAgent 
-            ? { userAgent: deviceData.userAgent } 
+          ...(currentSession.userAgent === null && deviceData.userAgent
+            ? { userAgent: deviceData.userAgent }
             : {}),
-          // Update location only if not set yet
-          ...(location && !currentSession.locationCity ? {
-            location: location.city
-              ? `${location.city}, ${
-                  location.region || location.country || ""
-                }`.trim()
-              : null,
-            locationCity: location.city || null,
-            locationRegion: location.region || null,
-            locationCountry: location.country || null,
-            locationCountryCode: location.countryCode || null,
-            latitude: location.latitude || null,
-            longitude: location.longitude || null,
-            locationSource: location.source || "geoip",
-          } : {}),
+          ...(location && !currentSession.locationCity
+            ? {
+                location: location.city
+                  ? `${location.city}, ${
+                      location.region || location.country || ""
+                    }`.trim()
+                  : null,
+                locationCity: location.city || null,
+                locationRegion: location.region || null,
+                locationCountry: location.country || null,
+                locationCountryCode: location.countryCode || null,
+                latitude: location.latitude || null,
+                longitude: location.longitude || null,
+                locationSource: location.source || "geoip",
+              }
+            : {}),
         },
       });
 
@@ -307,7 +279,6 @@ export const deviceRouter = createTRPCRouter({
       });
     }
 
-    // Get current session with device
     const currentSession = await ctx.prisma.session.findFirst({
       where: {
         sessionToken,
@@ -325,9 +296,7 @@ export const deviceRouter = createTRPCRouter({
       });
     }
 
-    // Check if device is revoked
     if (currentSession.device && currentSession.device.revoked) {
-      // Revoke the session
       await ctx.prisma.session.update({
         where: { id: currentSession.id },
         data: {
@@ -342,8 +311,7 @@ export const deviceRouter = createTRPCRouter({
         message: "Device has been revoked",
         cause: {
           revoked: true,
-          reason:
-            currentSession.device.revokeReason || "Device access revoked",
+          reason: currentSession.device.revokeReason || "Device access revoked",
         },
       });
     }
@@ -369,7 +337,6 @@ export const deviceRouter = createTRPCRouter({
         });
       }
 
-      // Revoke current session - find by sessionToken first
       let result = await ctx.prisma.session.updateMany({
         where: {
           sessionToken,
@@ -383,7 +350,6 @@ export const deviceRouter = createTRPCRouter({
         },
       });
 
-      // If not found by sessionToken, try to find by userId and update
       if (result.count === 0) {
         result = await ctx.prisma.session.updateMany({
           where: {
@@ -408,8 +374,6 @@ export const deviceRouter = createTRPCRouter({
       return { success: true, count: result.count };
     }),
 
-  // Check if current session is valid (for middleware/API routes)
-  // This is a public procedure that can be called without full auth context
   checkSession: publicProcedure.query(async ({ ctx }) => {
     const cookieStore = await cookies();
     const sessionToken = cookieStore.get("authjs.session-token")?.value;
@@ -421,7 +385,6 @@ export const deviceRouter = createTRPCRouter({
       };
     }
 
-    // Find session by token
     const session = await ctx.prisma.session.findUnique({
       where: {
         sessionToken,
@@ -431,17 +394,14 @@ export const deviceRouter = createTRPCRouter({
       },
     });
 
-    // If session doesn't exist in DB, allow through (session will be created)
-    // This prevents blocking legitimate new sessions
     if (!session) {
       return {
-        valid: true, // Allow through - session will be created
+        valid: true,
         reason: "SESSION_NOT_IN_DB_YET",
         sessionId: null,
       };
     }
 
-    // Check if session is revoked
     if (session.revoked) {
       return {
         valid: false,
@@ -450,9 +410,7 @@ export const deviceRouter = createTRPCRouter({
       };
     }
 
-    // Check if session is expired
     if (session.expires < new Date()) {
-      // Mark as revoked if expired
       await ctx.prisma.session.update({
         where: { id: session.id },
         data: {
@@ -468,9 +426,7 @@ export const deviceRouter = createTRPCRouter({
       };
     }
 
-    // Check if device is revoked
     if (session.device && session.device.revoked) {
-      // Revoke the session if device is revoked
       await ctx.prisma.session.update({
         where: { id: session.id },
         data: {
@@ -487,7 +443,6 @@ export const deviceRouter = createTRPCRouter({
       };
     }
 
-    // Session is valid
     return {
       valid: true,
       sessionId: session.id,
@@ -496,4 +451,3 @@ export const deviceRouter = createTRPCRouter({
     };
   }),
 });
-

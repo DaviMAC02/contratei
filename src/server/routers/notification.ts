@@ -6,7 +6,6 @@ import {
 } from "../trpc";
 import { TRPCError } from "@trpc/server";
 
-// Helper to validate org membership
 async function validateOrgMembership(
   prisma: any,
   userId: string,

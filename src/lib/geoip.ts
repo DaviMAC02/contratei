@@ -1,10 +1,3 @@
-/**
- * Utility functions for IP and location retrieval
- */
-
-/**
- * Get client IP address from request headers
- */
 export function getClientIp(request: Request | { headers: Headers }): string | null {
   const headers = request instanceof Request ? request.headers : request.headers;
   
@@ -31,9 +24,6 @@ export function getClientIp(request: Request | { headers: Headers }): string | n
   return null;
 }
 
-/**
- * Get location from IP using GeoIP API
- */
 export async function getLocationFromIp(
   ip: string
 ): Promise<{
@@ -93,9 +83,6 @@ export async function getLocationFromIp(
   }
 }
 
-/**
- * Fallback to ip-api.com for location lookup
- */
 async function getLocationFromIpApi(
   ip: string
 ): Promise<{

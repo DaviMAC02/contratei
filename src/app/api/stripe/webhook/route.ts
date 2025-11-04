@@ -109,7 +109,6 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     return;
   }
 
-  // Determine plan from price
   const priceId = subscription.items.data[0]?.price.id;
   let plan: keyof typeof PLANS = "FREE";
   let maxContracts = 3;
@@ -128,7 +127,6 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     }
   }
 
-  // Check if this is a downgrade and if it exceeds limits
   const oldPlan = org.plan;
   const isDowngrade = isPlanDowngrade(oldPlan, plan);
 
@@ -138,7 +136,6 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 
   const status = mapStripeStatus(subscription.status);
 
-  // Update or create subscription
   await prisma.subscription.upsert({
     where: { orgId },
     create: {
@@ -158,7 +155,6 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     },
   });
 
-  // Update org
   await prisma.org.update({
     where: { id: orgId },
     data: {
@@ -192,12 +188,10 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     return;
   }
 
-  // Check if this is a downgrade to FREE
   if (org.plan !== "FREE") {
     await handleDowngrade(orgId, org.plan, "FREE", 3, 1);
   }
 
-  // Downgrade to FREE plan
   await prisma.org.update({
     where: { id: orgId },
     data: {
@@ -233,11 +227,9 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
 
   if (!orgId) return;
 
-  // You could send an email notification here
   console.log(`Payment failed for org ${orgId}, invoice ${invoice.id}`);
 }
 
-// Helper to check if plan change is a downgrade
 function isPlanDowngrade(oldPlan: string, newPlan: string): boolean {
   const planHierarchy: Record<string, number> = {
     FREE: 0,
@@ -251,7 +243,6 @@ function isPlanDowngrade(oldPlan: string, newPlan: string): boolean {
   return newLevel < oldLevel;
 }
 
-// Handle downgrade scenario - check limits and notify users
 async function handleDowngrade(
   orgId: string,
   oldPlan: string,
@@ -259,7 +250,6 @@ async function handleDowngrade(
   newMaxContracts: number,
   newMaxUsers: number
 ) {
-  // Get current usage
   const [contractCount, userCount, ownerAdmins] = await Promise.all([
     prisma.contract.count({
       where: { orgId },
@@ -281,7 +271,6 @@ async function handleDowngrade(
   const exceedingContracts = contractCount > newMaxContracts;
   const exceedingUsers = userCount > newMaxUsers;
 
-  // Create notifications for owners/admins if limits are exceeded
   if (exceedingContracts || exceedingUsers) {
     const notifications = ownerAdmins.map((member) => ({
       orgId,

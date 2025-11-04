@@ -6,7 +6,7 @@ import { SessionActivityMonitor } from "./session-activity-monitor";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   return (
-    <SessionProvider refetchInterval={5 * 60} refetchOnWindowFocus={true}>
+    <SessionProvider refetchInterval={10 * 60} refetchOnWindowFocus={true}>
       <SessionActivityMonitor>{children}</SessionActivityMonitor>
     </SessionProvider>
   );

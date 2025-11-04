@@ -15,7 +15,6 @@ import {
   type Interval,
 } from "@/lib/stripe";
 
-// Helper to validate org membership
 async function validateOrgMembership(
   prisma: any,
   userId: string,

@@ -1,8 +1,3 @@
-/**
- * Server-side function to check session validity
- * Can be called from middleware or API routes
- */
-
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 

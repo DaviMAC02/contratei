@@ -21,7 +21,6 @@ export async function GET(request: NextRequest) {
   try {
     console.log(`[${jobId}] Starting daily cron job`);
 
-    // Run all automated tasks
     const [alertsResult, adjustmentsResult, renewalsResult] = await Promise.all(
       [
         checkExpiringContracts(),
@@ -41,7 +40,6 @@ export async function GET(request: NextRequest) {
       ...renewalsResult.errors,
     ];
 
-    // Log job execution
     await prisma.cronJob.create({
       data: {
         jobName: "daily-alerts-renewals-adjustments",

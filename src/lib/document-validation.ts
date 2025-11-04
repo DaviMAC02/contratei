@@ -1,8 +1,3 @@
-/**
- * Validates a Brazilian CPF (Cadastro de Pessoas Físicas)
- * @param cpf - CPF string with or without formatting
- * @returns true if valid, false otherwise
- */
 export function validateCPF(cpf: string): boolean {
   const cleaned = cpf.replace(/\D/g, "");
 
@@ -33,11 +28,6 @@ export function validateCPF(cpf: string): boolean {
   return true;
 }
 
-/**
- * Validates a Brazilian CNPJ (Cadastro Nacional da Pessoa Jurídica)
- * @param cnpj - CNPJ string with or without formatting
- * @returns true if valid, false otherwise
- */
 export function validateCNPJ(cnpj: string): boolean {
   const cleaned = cnpj.replace(/\D/g, "");
 
@@ -79,11 +69,6 @@ export function validateCNPJ(cnpj: string): boolean {
   return true;
 }
 
-/**
- * Formats a CPF string
- * @param value - CPF string to format
- * @returns Formatted CPF (000.000.000-00)
- */
 export function formatCPF(value: string): string {
   const cleaned = value.replace(/\D/g, "");
   const match = cleaned.match(/(\d{0,3})(\d{0,3})(\d{0,3})(\d{0,2})/);
@@ -94,11 +79,6 @@ export function formatCPF(value: string): string {
   return formatted.replace(/\.(\d{2})$/, "-$1");
 }
 
-/**
- * Formats a CNPJ string
- * @param value - CNPJ string to format
- * @returns Formatted CNPJ (00.000.000/0000-00)
- */
 export function formatCNPJ(value: string): string {
   const cleaned = value.replace(/\D/g, "");
   const match = cleaned.match(/(\d{0,2})(\d{0,3})(\d{0,3})(\d{0,4})(\d{0,2})/);
@@ -111,11 +91,6 @@ export function formatCNPJ(value: string): string {
   return formatted;
 }
 
-/**
- * Formats a CEP (Brazilian postal code) string
- * @param value - CEP string to format
- * @returns Formatted CEP (00000-000)
- */
 export function formatCEP(value: string): string {
   const cleaned = value.replace(/\D/g, "");
   const match = cleaned.match(/(\d{0,5})(\d{0,3})/);

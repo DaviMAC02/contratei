@@ -11,7 +11,6 @@ import { TRPCError } from "@trpc/server";
 import { ContractStatus, AdjustmentType, OrgRole } from "@prisma/client";
 import { addDays, differenceInCalendarDays } from "date-fns";
 
-// Helper to validate org membership
 async function validateOrgMembership(
   prisma: any,
   userId: string,
