@@ -20,7 +20,9 @@ const StyledPopover = styled(Popover)(({ theme }) => ({
   },
 }));
 
-const NotificationItem = styled(Box)<{ unread?: boolean }>(({ unread }) => ({
+const NotificationItem = styled(Box, {
+  shouldForwardProp: (prop) => prop !== 'unread',
+})<{ unread?: boolean }>(({ unread }) => ({
   padding: "12px 16px",
   borderBottom: "1px solid #f3f4f6",
   cursor: "pointer",
