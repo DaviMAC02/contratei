@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { NavigationProgress } from "@/components/providers/navigation-progress";
 import { ToastProvider } from "@/components/providers/toast-provider";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -35,6 +36,7 @@ export default function RootLayout({
                   <PostHogPageview />
                 </Suspense>
                 {children}
+                <SpeedInsights />
               </ErrorBoundary>
             </ToastProvider>
           </TRPCProvider>
