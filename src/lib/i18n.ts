@@ -4,7 +4,6 @@ export const translations = {
     "nav.dashboard": "Dashboard",
     "nav.contracts": "Contratos",
     "nav.settings": "Configurações",
-    "nav.billing": "Assinatura",
     "nav.team": "Equipe",
     "nav.logout": "Sair",
 
@@ -86,28 +85,6 @@ export const translations = {
     "role.manager": "Gerente",
     "role.viewer": "Visualizador",
 
-    // Billing
-    "billing.title": "Assinatura",
-    "billing.currentPlan": "Plano Atual",
-    "billing.upgrade": "Fazer Upgrade",
-    "billing.downgrade": "Fazer Downgrade",
-    "billing.cancel": "Cancelar Assinatura",
-    "billing.reactivate": "Reativar Assinatura",
-    "billing.portal": "Gerenciar Assinatura",
-    "billing.nextBilling": "Próxima Cobrança",
-    "billing.paymentMethod": "Método de Pagamento",
-
-    // Plans
-    "plan.free": "Gratuito",
-    "plan.pro": "Pro",
-    "plan.enterprise": "Enterprise",
-    "plan.monthly": "Mensal",
-    "plan.yearly": "Anual",
-    "plan.perMonth": "por mês",
-    "plan.perYear": "por ano",
-    "plan.contracts": "contratos",
-    "plan.users": "usuários",
-
     // Settings
     "settings.title": "Configurações",
     "settings.general": "Geral",
@@ -152,7 +129,6 @@ export const translations = {
     "nav.dashboard": "Dashboard",
     "nav.contracts": "Contracts",
     "nav.settings": "Settings",
-    "nav.billing": "Billing",
     "nav.team": "Team",
     "nav.logout": "Sign Out",
 
@@ -233,28 +209,6 @@ export const translations = {
     "role.admin": "Administrator",
     "role.manager": "Manager",
     "role.viewer": "Viewer",
-
-    // Billing
-    "billing.title": "Billing",
-    "billing.currentPlan": "Current Plan",
-    "billing.upgrade": "Upgrade",
-    "billing.downgrade": "Downgrade",
-    "billing.cancel": "Cancel Subscription",
-    "billing.reactivate": "Reactivate Subscription",
-    "billing.portal": "Manage Subscription",
-    "billing.nextBilling": "Next Billing",
-    "billing.paymentMethod": "Payment Method",
-
-    // Plans
-    "plan.free": "Free",
-    "plan.pro": "Pro",
-    "plan.enterprise": "Enterprise",
-    "plan.monthly": "Monthly",
-    "plan.yearly": "Yearly",
-    "plan.perMonth": "per month",
-    "plan.perYear": "per year",
-    "plan.contracts": "contracts",
-    "plan.users": "users",
 
     // Settings
     "settings.title": "Settings",

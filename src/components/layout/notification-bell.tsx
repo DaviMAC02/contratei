@@ -196,8 +196,6 @@ export function NotificationBell() {
             ) : (
               notifications.map((notification: any) => {
                 const isRead = !!notification.readAt;
-                const isPlanLimit =
-                  notification.eventType === "PLAN_LIMIT_REACHED";
 
                 return (
                   <NotificationItem
@@ -252,20 +250,6 @@ export function NotificationBell() {
                               }
                             )}
                           </Typography>
-                          {isPlanLimit && (
-                            <Box
-                              sx={{
-                                padding: "2px 8px",
-                                borderRadius: 1,
-                                backgroundColor: "#fef3c7",
-                                color: "#92400e",
-                                fontSize: "0.7rem",
-                                fontWeight: 600,
-                              }}
-                            >
-                              Importante
-                            </Box>
-                          )}
                         </Box>
                       </Box>
                       {!isRead && (

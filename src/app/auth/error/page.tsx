@@ -39,11 +39,6 @@ const errorMessages: Record<string, { title: string; description: string }> = {
     description:
       "Não foi possível fazer login com Google. Por favor, tente novamente ou crie uma conta.",
   },
-  RevokedDevice: {
-    title: "Dispositivo Revogado",
-    description:
-      "O dispositivo que você está usando foi revogado e não pode mais ser usado para acessar sua conta. Entre em contato com o suporte se precisar de ajuda.",
-  },
   Default: {
     title: "Erro de Autenticação",
     description:

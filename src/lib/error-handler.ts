@@ -53,14 +53,10 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
  */
 const CONTEXT_MESSAGES: Record<string, Record<string, string>> = {
   contract: {
-    CREATE_LIMIT_REACHED:
-      "Você atingiu o limite de contratos do seu plano. Faça upgrade para criar mais contratos.",
     CREATE_FAILED: "Não foi possível criar o contrato. Tente novamente.",
     UPDATE_FAILED: "Não foi possível atualizar o contrato. Tente novamente.",
     DELETE_FAILED: "Não foi possível excluir o contrato. Tente novamente.",
     NOT_FOUND: "Contrato não encontrado ou você não tem acesso a ele.",
-    UPLOAD_LIMIT_REACHED:
-      "Você atingiu o limite de armazenamento. Exclua alguns arquivos ou faça upgrade.",
   },
   file: {
     UPLOAD_FAILED:
@@ -80,18 +76,6 @@ const CONTEXT_MESSAGES: Record<string, Record<string, string>> = {
     DELETE_FAILED: "Não foi possível excluir a organização. Tente novamente.",
     NOT_FOUND: "Organização não encontrada ou você não tem acesso a ela.",
     INVITE_FAILED: "Não foi possível enviar o convite. Tente novamente.",
-    INVITE_LIMIT_REACHED:
-      "Você atingiu o limite de membros do seu plano. Faça upgrade para adicionar mais usuários.",
-  },
-  billing: {
-    CHECKOUT_FAILED:
-      "Não foi possível iniciar o processo de pagamento. Tente novamente.",
-    SUBSCRIPTION_UPDATE_FAILED:
-      "Não foi possível atualizar sua assinatura. Tente novamente.",
-    PAYMENT_FAILED:
-      "O pagamento não pôde ser processado. Verifique seus dados de pagamento.",
-    CANCEL_FAILED:
-      "Não foi possível cancelar a assinatura. Entre em contato com o suporte.",
   },
   auth: {
     SIGNIN_FAILED:

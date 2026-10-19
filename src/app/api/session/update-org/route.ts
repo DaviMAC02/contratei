@@ -3,7 +3,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { createCaller } from "@/server/root";
-import { getClientIp, getLocationFromIp } from "@/lib/geoip";
 
 export const runtime = "nodejs";
 
@@ -15,7 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { orgId, gpsCoordinates } = await request.json();
+    const { orgId } = await request.json();
 
     if (!orgId) {
       return NextResponse.json({ error: "orgId is required" }, { status: 400 });
@@ -32,16 +31,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    const clientIp = getClientIp(request) || "unknown";
-    let locationData = null;
-
-    if (clientIp !== "unknown") {
-      try {
-        locationData = await getLocationFromIp(clientIp);
-      } catch (error) {
-        console.error("Error getting location from IP:", error);
-      }
-    }
+    const clientIp =
+      request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+      request.headers.get("x-real-ip") ||
+      undefined;
 
     const userAgent = request.headers.get("user-agent") || null;
     const cookieStore = await cookies();
@@ -56,31 +49,12 @@ export async function POST(request: NextRequest) {
         const caller = await createCaller({ session });
 
         const result = await caller.auth.createSession({
-          ip: clientIp !== "unknown" ? clientIp : undefined,
+          ip: clientIp,
           userAgent: userAgent || undefined,
-          location: locationData
-            ? {
-                city: locationData.city,
-                region: locationData.region,
-                country: locationData.country,
-                countryCode: locationData.countryCode,
-                latitude: gpsCoordinates?.latitude || locationData.latitude,
-                longitude: gpsCoordinates?.longitude || locationData.longitude,
-                source: gpsCoordinates
-                  ? "gps"
-                  : locationData?.source || "geoip",
-              }
-            : gpsCoordinates
-            ? {
-                latitude: gpsCoordinates.latitude,
-                longitude: gpsCoordinates.longitude,
-                source: "gps",
-              }
-            : undefined,
         });
 
         console.log(
-          `Session ${result.sessionId} created for user ${session.user.id} (revoked ${result.revokedOtherSessions} other sessions)`
+          `Session ${result.sessionId} created for user ${session.user.id}`
         );
       }
     }

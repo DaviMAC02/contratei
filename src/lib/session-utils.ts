@@ -13,7 +13,7 @@ export async function signOutWithRevocation(
   const { reason = "USER_LOGOUT", redirect, callbackUrl } = options || {};
 
   try {
-    const result = await trpcStandalone.device.revokeSession.mutate({ reason });
+    const result = await trpcStandalone.session.revokeSession.mutate({ reason });
     if (result.success) {
       console.log(`Revoked ${result.count} session(s) with reason: ${reason}`);
     }

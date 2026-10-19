@@ -97,9 +97,6 @@ export const authRouter = createTRPCRouter({
               currency,
               locale,
               timezone,
-              plan: "FREE",
-              maxContracts: 3,
-              maxUsers: 1,
               orgType: input.orgType,
               cpf: input.orgType === "PF" ? input.cpf : undefined,
               legalName: input.orgType === "PJ" ? input.legalName : undefined,
@@ -134,7 +131,6 @@ export const authRouter = createTRPCRouter({
               metadata: {
                 orgName,
                 country,
-                plan: "FREE",
                 orgType: input.orgType,
               },
             },
@@ -198,17 +194,6 @@ export const authRouter = createTRPCRouter({
         .object({
           ip: z.string().optional(),
           userAgent: z.string().optional(),
-          location: z
-            .object({
-              city: z.string().optional(),
-              region: z.string().optional(),
-              country: z.string().optional(),
-              countryCode: z.string().optional(),
-              latitude: z.number().optional(),
-              longitude: z.number().optional(),
-              source: z.string().optional(),
-            })
-            .optional(),
         })
         .optional()
     )
@@ -225,30 +210,6 @@ export const authRouter = createTRPCRouter({
 
       const sessionExpiry = new Date();
       sessionExpiry.setHours(sessionExpiry.getHours() + 24); // 24 hours to match NextAuth maxAge
-
-      const revokedCount = await ctx.prisma.session.updateMany({
-        where: {
-          userId,
-          sessionToken: {
-            not: sessionToken,
-          },
-          revoked: false,
-          expires: {
-            gt: new Date(),
-          },
-        },
-        data: {
-          revoked: true,
-          revokeReason: "NEW_LOGIN",
-          revokedAt: new Date(),
-        },
-      });
-
-      if (revokedCount.count > 0) {
-        console.log(
-          `✅ Revoked ${revokedCount.count} other active session(s) for user ${userId} due to new login`
-        );
-      }
 
       const existingSession = await ctx.prisma.session.findUnique({
         where: {
@@ -273,7 +234,6 @@ export const authRouter = createTRPCRouter({
           success: true,
           sessionId: existingSession.id,
           message: "Session already exists and is valid",
-          revokedOtherSessions: revokedCount.count,
         };
       }
 
@@ -284,14 +244,6 @@ export const authRouter = createTRPCRouter({
         revoked: boolean;
         ip?: string;
         userAgent?: string;
-        location?: string;
-        locationCity?: string;
-        locationRegion?: string;
-        locationCountry?: string;
-        locationCountryCode?: string;
-        latitude?: number;
-        longitude?: number;
-        locationSource?: string;
       } = {
         sessionToken,
         userId,
@@ -306,32 +258,6 @@ export const authRouter = createTRPCRouter({
         sessionData.userAgent = input.userAgent;
       }
 
-      if (input?.location) {
-        const loc = input.location;
-        if (loc.city) {
-          sessionData.locationCity = loc.city;
-          sessionData.location = `${loc.city}${loc.region ? `, ${loc.region}` : ""}${loc.country ? `, ${loc.country}` : ""}`.trim();
-        }
-        if (loc.region) {
-          sessionData.locationRegion = loc.region;
-        }
-        if (loc.country) {
-          sessionData.locationCountry = loc.country;
-        }
-        if (loc.countryCode) {
-          sessionData.locationCountryCode = loc.countryCode;
-        }
-        if (loc.latitude !== undefined) {
-          sessionData.latitude = loc.latitude;
-        }
-        if (loc.longitude !== undefined) {
-          sessionData.longitude = loc.longitude;
-        }
-        if (loc.source) {
-          sessionData.locationSource = loc.source;
-        }
-      }
-
       const session = await ctx.prisma.session.upsert({
         where: {
           sessionToken,
@@ -344,29 +270,18 @@ export const authRouter = createTRPCRouter({
           revokedAt: null,
           ...(input?.ip && input.ip !== "unknown" ? { ip: input.ip } : {}),
           ...(input?.userAgent ? { userAgent: input.userAgent } : {}),
-          ...(input?.location ? {
-            location: sessionData.location || null,
-            locationCity: sessionData.locationCity || null,
-            locationRegion: sessionData.locationRegion || null,
-            locationCountry: sessionData.locationCountry || null,
-            locationCountryCode: sessionData.locationCountryCode || null,
-            latitude: sessionData.latitude || null,
-            longitude: sessionData.longitude || null,
-            locationSource: sessionData.locationSource || null,
-          } : {}),
         },
         create: sessionData,
       });
 
       console.log(
-        `✅ Created/updated session ${session.id} for user ${userId} after org selection (revoked ${revokedCount.count} other sessions)`
+        `✅ Created/updated session ${session.id} for user ${userId} after org selection`
       );
 
       return {
         success: true,
         sessionId: session.id,
         message: "Session created/updated successfully",
-        revokedOtherSessions: revokedCount.count,
       };
     }),
 });

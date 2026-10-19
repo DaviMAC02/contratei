@@ -12,10 +12,8 @@ import {
   FileText,
   Users,
   Settings,
-  CreditCard,
   LogOut,
   Building,
-  BarChart3,
 } from "lucide-react";
 import { useTranslation } from "@/lib/use-translation";
 import { NotificationBell } from "./notification-bell";
@@ -115,19 +113,9 @@ export function Sidebar({
       icon: FileText,
     },
     {
-      name: "Uso do Plano",
-      href: `/usage`,
-      icon: BarChart3,
-    },
-    {
       name: t("nav.team"),
       href: `/team`,
       icon: Users,
-    },
-    {
-      name: t("nav.billing"),
-      href: `/billing`,
-      icon: CreditCard,
     },
     {
       name: t("nav.settings"),
