@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         });
 
         console.log(
-          `Session ${result.sessionId} created for user ${session.user.id} (revoked ${result.revokedOtherSessions} other sessions)`
+          `Session ${result.sessionId} created for user ${session.user.id}`
         );
       }
     }

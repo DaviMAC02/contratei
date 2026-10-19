@@ -211,30 +211,6 @@ export const authRouter = createTRPCRouter({
       const sessionExpiry = new Date();
       sessionExpiry.setHours(sessionExpiry.getHours() + 24); // 24 hours to match NextAuth maxAge
 
-      const revokedCount = await ctx.prisma.session.updateMany({
-        where: {
-          userId,
-          sessionToken: {
-            not: sessionToken,
-          },
-          revoked: false,
-          expires: {
-            gt: new Date(),
-          },
-        },
-        data: {
-          revoked: true,
-          revokeReason: "NEW_LOGIN",
-          revokedAt: new Date(),
-        },
-      });
-
-      if (revokedCount.count > 0) {
-        console.log(
-          `✅ Revoked ${revokedCount.count} other active session(s) for user ${userId} due to new login`
-        );
-      }
-
       const existingSession = await ctx.prisma.session.findUnique({
         where: {
           sessionToken,
@@ -258,7 +234,6 @@ export const authRouter = createTRPCRouter({
           success: true,
           sessionId: existingSession.id,
           message: "Session already exists and is valid",
-          revokedOtherSessions: revokedCount.count,
         };
       }
 
@@ -300,14 +275,13 @@ export const authRouter = createTRPCRouter({
       });
 
       console.log(
-        `✅ Created/updated session ${session.id} for user ${userId} after org selection (revoked ${revokedCount.count} other sessions)`
+        `✅ Created/updated session ${session.id} for user ${userId} after org selection`
       );
 
       return {
         success: true,
         sessionId: session.id,
         message: "Session created/updated successfully",
-        revokedOtherSessions: revokedCount.count,
       };
     }),
 });
