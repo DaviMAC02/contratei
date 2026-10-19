@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "@/lib/use-translation";
 import { ArrowLeft, ArrowRight, Check, Upload, X } from "lucide-react";
 import Link from "next/link";
-import { trackContractCreated } from "@/components/providers/posthog-provider";
 import { createContractWithFiles } from "@/app/(dashboard)/contracts/new/actions";
 import {
   Box,
@@ -96,7 +95,6 @@ export default function NewContractClient({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const orgId = initialOrgId;
-  const org = initialOrg;
   const members = initialMembers?.members || [];
 
   const handleNext = () => {
@@ -181,16 +179,6 @@ export default function NewContractClient({
       });
 
       await createContractWithFiles(submitFormData);
-
-      // Track contract creation
-      if (org) {
-        trackContractCreated(
-          Number(formData.valueAmount),
-          formData.autoRenew,
-          formData.adjustmentType !== "NONE",
-          org.plan
-        );
-      }
 
       router.push("/contracts");
       router.refresh();

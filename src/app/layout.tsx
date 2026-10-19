@@ -3,7 +3,6 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { TRPCProvider } from "@/lib/trpc-client";
 import { Suspense } from "react";
-import { PostHogPageview } from "@/components/providers/posthog-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { NavigationProgress } from "@/components/providers/navigation-progress";
 import { ToastProvider } from "@/components/providers/toast-provider";
@@ -31,9 +30,6 @@ export default function RootLayout({
               <ErrorBoundary>
                 <Suspense fallback={null}>
                   <NavigationProgress />
-                </Suspense>
-                <Suspense fallback={null}>
-                  <PostHogPageview />
                 </Suspense>
                 {children}
                 <SpeedInsights />

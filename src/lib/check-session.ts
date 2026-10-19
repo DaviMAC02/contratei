@@ -17,9 +17,6 @@ export async function checkSessionValidity() {
     where: {
       sessionToken,
     },
-    include: {
-      device: true,
-    },
   });
 
   // If session doesn't exist in DB, it might be a new login
@@ -60,31 +57,11 @@ export async function checkSessionValidity() {
     };
   }
 
-  // Check if device is revoked
-  if (session.device && session.device.revoked) {
-    // Revoke the session if device is revoked
-    await prisma.session.update({
-      where: { id: session.id },
-      data: {
-        revoked: true,
-        revokeReason: "REVOKED_DEVICE",
-        revokedAt: new Date(),
-      },
-    });
-
-    return {
-      valid: false,
-      reason: "REVOKED_DEVICE",
-      revokeReason: session.device.revokeReason || "Device access revoked",
-    };
-  }
-
   // Session is valid
   return {
     valid: true,
     sessionId: session.id,
     userId: session.userId,
-    deviceId: session.deviceId,
     expires: session.expires,
   };
 }

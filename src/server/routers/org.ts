@@ -8,7 +8,7 @@ import {
   checkRole,
 } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import { OrgRole, OrgPlan } from "@prisma/client";
+import { OrgRole } from "@prisma/client";
 import { nanoid } from "nanoid";
 import { resend, emailTemplates } from "@/lib/email";
 import { addDays } from "date-fns";
@@ -183,10 +183,6 @@ export const orgRouter = createTRPCRouter({
           timezone: input.timezone || config.timezone,
           locale: config.locale,
           currency: config.currency,
-          plan: "FREE",
-          maxContracts: 3,
-          maxUsers: 1,
-          trialEndsAt: addDays(new Date(), 14),
           orgType: input.orgType,
           // Identification
           cpf: input.orgType === "PF" ? input.cpf : undefined,
@@ -367,58 +363,13 @@ export const orgRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Validate org membership, check role, and get org for plan limits
+      // Validate org membership and check role
       const { org, userRole } = await validateOrgMembership(
         ctx.prisma,
         ctx.session!.user.id,
         input.orgId
       );
       checkRole(userRole, "OWNER", "ADMIN");
-
-      // Check user limit
-      const memberCount = await ctx.prisma.orgMember.count({
-        where: { orgId: input.orgId },
-      });
-
-      if (memberCount >= org.maxUsers) {
-        const exceedingCount = memberCount - org.maxUsers;
-        const message =
-          exceedingCount > 0
-            ? `Você tem ${memberCount} usuários, mas seu plano permite apenas ${org.maxUsers}. ` +
-              `Você precisa fazer upgrade ou remover ${exceedingCount + 1} usuário(s) para adicionar novos.`
-            : `Você atingiu o limite de ${org.maxUsers} usuários do seu plano. Faça upgrade para adicionar mais usuários.`;
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message,
-        });
-      }
-
-      // Warn if approaching limit (80%)
-      const limitThreshold = org.maxUsers * 0.8;
-      if (memberCount >= limitThreshold && memberCount < org.maxUsers) {
-        // Create notification for approaching limit
-        await ctx.prisma.notification.create({
-          data: {
-            orgId: input.orgId,
-            userId: ctx.session!.user.id,
-            eventType: "PLAN_LIMIT_REACHED",
-            channel: "IN_APP",
-            status: "PENDING",
-            title: "Limite de usuários próximo",
-            message: `Você está usando ${memberCount} de ${
-              org.maxUsers
-            } usuários (${Math.round(
-              (memberCount / org.maxUsers) * 100
-            )}%). Considere fazer upgrade do seu plano.`,
-            metadata: {
-              type: "users",
-              currentCount: memberCount,
-              maxCount: org.maxUsers,
-              percentage: Math.round((memberCount / org.maxUsers) * 100),
-            },
-          },
-        });
-      }
 
       // Check if user with this email exists in the system
       const userExists = await ctx.prisma.user.findUnique({

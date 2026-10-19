@@ -239,50 +239,6 @@ export const contractRouter = createTRPCRouter({
       );
       checkRole(userRole, "OWNER", "ADMIN", "MANAGER");
 
-      // Check plan limits
-      const contractCount = await ctx.prisma.contract.count({
-        where: { orgId: input.orgId },
-      });
-
-      if (contractCount >= org.maxContracts) {
-        const exceedingCount = contractCount - org.maxContracts;
-        const message =
-          exceedingCount > 0
-            ? `Você tem ${contractCount} contratos, mas seu plano permite apenas ${org.maxContracts}. ` +
-              `Você precisa fazer upgrade ou arquivar/excluir ${exceedingCount + 1} contrato(s) para criar novos.`
-            : `Você atingiu o limite de ${org.maxContracts} contratos do seu plano. Faça upgrade para criar mais contratos.`;
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message,
-        });
-      }
-
-      // Warn if approaching limit (80%)
-      const limitThreshold = org.maxContracts * 0.8;
-      if (contractCount >= limitThreshold && contractCount < org.maxContracts) {
-        // Create notification for approaching limit
-        await ctx.prisma.notification.create({
-          data: {
-            orgId: input.orgId,
-            userId: ctx.session!.user.id,
-            eventType: "PLAN_LIMIT_REACHED",
-            channel: "IN_APP",
-            status: "PENDING",
-            title: "Limite de contratos próximo",
-            message: `Você está usando ${contractCount} de ${
-              org.maxContracts
-            } contratos (${Math.round(
-              (contractCount / org.maxContracts) * 100
-            )}%). Considere fazer upgrade do seu plano.`,
-            metadata: {
-              currentCount: contractCount,
-              maxCount: org.maxContracts,
-              percentage: Math.round((contractCount / org.maxContracts) * 100),
-            },
-          },
-        });
-      }
-
       const nextRenewalDate = calculateNextRenewalDateFromRange(
         input.startDate,
         input.endDate || null

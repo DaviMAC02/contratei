@@ -7,7 +7,6 @@ import {
   checkRole,
 } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import { hasPlanFeature, type PlanName } from "@/lib/stripe";
 
 async function validateOrgMembership(
   prisma: any,
@@ -62,15 +61,6 @@ export const fileRouter = createTRPCRouter({
         input.orgId
       );
       checkRole(userRole, "OWNER", "ADMIN", "MANAGER");
-
-      // Check if plan supports file upload
-      if (!hasPlanFeature(org.plan as PlanName, "fileUpload")) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message:
-            "Seu plano não suporta upload de arquivos. Faça upgrade para desbloquear esta funcionalidade.",
-        });
-      }
 
       // Verify contract belongs to org
       const contract = await ctx.prisma.contract.findUnique({

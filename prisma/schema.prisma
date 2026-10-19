@@ -26,7 +26,6 @@ model User {
 
   accounts      Account[]
   sessions      Session[]
-  devices       Device[]
   memberships   OrgMember[]
   contracts     Contract[] // Contracts owned by this user
   auditLogs     AuditLog[]
@@ -56,66 +55,21 @@ model Account {
   @@index([userId])
 }
 
-model Device {
-  id                    String    @id @default(uuid())
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deviceId              String    @unique // FingerprintJS visitorId
-  deviceFingerprintHash String // Also stores FingerprintJS visitorId (kept for compatibility)
-  appVersion            String?
-  os                    String?
-  platform              String?
-  deviceModel           String?
-  userAgent             String?
-  language              String?
-  screenResolution      String?
-  timezone              String?
-  enrollmentMethod      String    @default("OAUTH")
-  firstSeen             DateTime  @default(now())
-  lastSeen              DateTime  @default(now())
-  lastSeenIp            String?
-  ipHistory             Json?
-  lastSeenLocation      Json?
-  activated             Boolean   @default(false)
-  revoked               Boolean   @default(false)
-  revokeReason          String?
-  revokedAt             DateTime?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  sessions              Session[]
-
-  @@index([userId])
-  @@index([deviceId])
-  @@index([userId, activated])
-  @@index([userId, revoked])
-}
-
 model Session {
-  id                  String    @id @default(cuid())
-  sessionToken        String    @unique
-  userId              String
-  deviceId            String? // Device.id (UUID), nullable because session may be created before device tracking
-  device              Device?   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  ip                  String? // Nullable because session may be created before IP is known
-  location            String?
-  locationCity        String?
-  locationRegion      String?
-  locationCountry     String?
-  locationCountryCode String?
-  latitude            Float?
-  longitude           Float?
-  locationSource      String?
-  userAgent           String?
-  revoked             Boolean   @default(false)
-  revokeReason        String?
-  revokedAt           DateTime?
-  expires             DateTime
-  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  sessionToken String    @unique
+  userId       String
+  ip           String? // Nullable because session may be created before IP is known
+  userAgent    String?
+  revoked      Boolean   @default(false)
+  revokeReason String?
+  revokedAt    DateTime?
+  expires      DateTime
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([userId])
-  @@index([deviceId])
 }
 
 model VerificationToken {
@@ -138,12 +92,6 @@ enum OrgRole {
   VIEWER
 }
 
-enum OrgPlan {
-  FREE
-  PRO
-  ENTERPRISE
-}
-
 model Org {
   id        String    @id @default(cuid())
   name      String
@@ -152,14 +100,9 @@ model Org {
   timezone  String    @default("UTC")
   locale    String    @default("pt-BR") // "pt-BR" or "pt-PT"
   currency  String    @default("BRL") // "BRL" or "EUR"
-  plan      OrgPlan   @default(FREE)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime? // Soft delete timestamp
-
-  // Plan limits (defaults match FREE plan: 3 contracts, 1 user)
-  maxContracts Int @default(3)
-  maxUsers     Int @default(1)
 
   // Identification
   orgType OrgType @default(PF)
@@ -182,14 +125,6 @@ model Org {
   addressCity         String?
   addressState        String?
 
-  // Billing
-  stripeCustomerId       String?       @unique
-  stripeSubscriptionId   String?       @unique
-  stripePriceId          String?
-  stripeCurrentPeriodEnd DateTime?
-  trialEndsAt            DateTime?
-  subscription           Subscription?
-
   members       OrgMember[]
   contracts     Contract[]
   invitations   Invitation[]
@@ -198,8 +133,6 @@ model Org {
   alertSettings AlertSetting[]
 
   @@index([slug])
-  @@index([stripeCustomerId])
-  @@index([stripeSubscriptionId])
   @@index([deletedAt])
 }
 
@@ -242,39 +175,6 @@ model Invitation {
   @@index([orgId])
   @@index([token])
   @@index([email])
-}
-
-// ============================================
-// SUBSCRIPTIONS
-// ============================================
-
-enum SubscriptionStatus {
-  ACTIVE
-  CANCELED
-  INCOMPLETE
-  INCOMPLETE_EXPIRED
-  PAST_DUE
-  TRIALING
-  UNPAID
-}
-
-model Subscription {
-  id                     String             @id @default(cuid())
-  orgId                  String             @unique
-  status                 SubscriptionStatus
-  stripeSubscriptionId   String             @unique
-  stripePriceId          String
-  stripeCustomerId       String
-  stripeCurrentPeriodEnd DateTime
-  cancelAtPeriodEnd      Boolean            @default(false)
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
-
-  org Org @relation(fields: [orgId], references: [id], onDelete: Cascade)
-
-  @@index([orgId])
-  @@index([stripeSubscriptionId])
-  @@index([stripeCustomerId])
 }
 
 // ============================================
@@ -434,8 +334,6 @@ enum AlertEventType {
   ADJUSTMENT_DUE
   ADJUSTMENT_APPLIED
   RENEWAL_REMINDER
-  PLAN_LIMIT_REACHED
-  PAYMENT_FAILED
   TEAM_INVITE
 }
 

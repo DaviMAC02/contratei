@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { auth } from "@/lib/auth";
 import { AuthProvider } from "@/components/providers/auth-provider";
-import { DeviceTracker } from "@/components/providers/device-tracker";
 import { prisma } from "@/lib/prisma";
 import { createCaller } from "@/server/root";
 
@@ -50,47 +48,8 @@ export default async function AuthCompleteLayout({
     }
   }
 
-  try {
-    const cookieStore = await cookies();
-    const sessionToken = cookieStore.get("authjs.session-token")?.value;
-
-    if (sessionToken) {
-      const currentSession = await prisma.session.findFirst({
-        where: {
-          sessionToken,
-          userId: session.user.id,
-        },
-        include: {
-          device: true,
-        },
-      });
-
-      if (currentSession) {
-        if (
-          currentSession.device &&
-          currentSession.device.revoked &&
-          !currentSession.revoked
-        ) {
-          await prisma.session.update({
-            where: { id: currentSession.id },
-            data: {
-              revoked: true,
-              revokeReason: "REVOKED_DEVICE",
-              revokedAt: new Date(),
-            },
-          });
-
-          redirect("/auth/signin?error=RevokedDevice");
-        }
-      }
-    }
-  } catch (error) {
-    console.error("Error checking device status:", error);
-  }
-
   return (
     <AuthProvider>
-      <DeviceTracker />
       <div className="min-h-screen bg-background">{children}</div>
     </AuthProvider>
   );

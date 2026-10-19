@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: contratei
+      POSTGRES_PASSWORD: contratei
+      POSTGRES_DB: contratei
+    ports:
+      - "5432:5432"
+    volumes:
+      - db:/var/lib/postgresql/data
+volumes:
+  db:

@@ -66,33 +66,10 @@ export default function SelectOrgPage() {
       setSelectedOrgId(orgId);
       setIsRedirecting(true);
 
-      let gpsCoordinates = null;
-      if (typeof window !== "undefined" && "geolocation" in navigator) {
-        try {
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: true,
-              timeout: 5000,
-              maximumAge: 0,
-            });
-          });
-          
-          gpsCoordinates = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          };
-        } catch (error) {
-          console.log("GPS unavailable:", error);
-        }
-      }
-
       const response = await fetch("/api/session/update-org", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          orgId,
-          gpsCoordinates: gpsCoordinates || undefined,
-        }),
+        body: JSON.stringify({ orgId }),
       });
 
       if (response.ok) {
@@ -291,7 +268,7 @@ export default function SelectOrgPage() {
                             color: "#6b7280",
                           }}
                         >
-                          {org.role.toLowerCase()} • {org.plan.toLowerCase()}
+                          {org.role.toLowerCase()}
                         </Typography>
                       </Box>
                     </MenuItem>

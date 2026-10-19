@@ -1,6 +1,5 @@
 import { prisma } from "./prisma";
 import { sendEmail, emailTemplates } from "./email";
-import { hasPlanFeature, type PlanName } from "./stripe";
 import type { AlertEventType, NotificationChannel } from "@prisma/client";
 
 interface CreateAlertParams {
@@ -17,18 +16,11 @@ export async function createAlert(params: CreateAlertParams) {
 
   const org = await prisma.org.findUnique({
     where: { id: orgId },
-    select: { plan: true },
+    select: { id: true },
   });
 
   if (!org) {
     throw new Error("Organization not found");
-  }
-
-  if (!hasPlanFeature(org.plan as PlanName, "automaticAlerts")) {
-    console.log(
-      `Skipping alert for org ${orgId} - plan ${org.plan} doesn't support automatic alerts`
-    );
-    return null;
   }
 
   const alertSetting = await prisma.alertSetting.findUnique({
@@ -189,14 +181,8 @@ async function getAlertRecipients(orgId: string, defaultUserId: string) {
 
 export async function checkExpiringContracts() {
   const orgs = await prisma.org.findMany({
-    where: {
-      plan: {
-        not: "FREE",
-      },
-    },
     select: {
       id: true,
-      plan: true,
       alertSettings: true,
     },
   });
@@ -206,10 +192,6 @@ export async function checkExpiringContracts() {
 
   for (const org of orgs) {
     try {
-      if (!hasPlanFeature(org.plan as PlanName, "automaticAlerts")) {
-        continue;
-      }
-
       const alertSetting = org.alertSettings.find(
         (s) => s.eventType === "CONTRACT_DUE_SOON"
       );
@@ -286,12 +268,7 @@ export async function checkExpiringContracts() {
 
 export async function checkContractsForAdjustment() {
   const orgs = await prisma.org.findMany({
-    where: {
-      plan: {
-        in: ["PRO", "ENTERPRISE"],
-      },
-    },
-    select: { id: true, plan: true },
+    select: { id: true },
   });
 
   let processedCount = 0;
@@ -299,10 +276,6 @@ export async function checkContractsForAdjustment() {
 
   for (const org of orgs) {
     try {
-      if (!hasPlanFeature(org.plan as PlanName, "automaticAdjustments")) {
-        continue;
-      }
-
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
@@ -401,12 +374,7 @@ export async function checkContractsForAdjustment() {
 
 export async function processAutomaticRenewals() {
   const orgs = await prisma.org.findMany({
-    where: {
-      plan: {
-        not: "FREE",
-      },
-    },
-    select: { id: true, plan: true },
+    select: { id: true },
   });
 
   let processedCount = 0;
@@ -414,10 +382,6 @@ export async function processAutomaticRenewals() {
 
   for (const org of orgs) {
     try {
-      if (!hasPlanFeature(org.plan as PlanName, "automaticRenewal")) {
-        continue;
-      }
-
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);

@@ -29,7 +29,7 @@ export function SessionActivityMonitor({
   const inactivityTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const sessionCheckTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
-  const { data: sessionValidity } = trpc.device.checkSession.useQuery(
+  const { data: sessionValidity } = trpc.session.checkSession.useQuery(
     undefined,
     {
       enabled: status === "authenticated",
